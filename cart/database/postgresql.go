@@ -11,7 +11,7 @@ import (
 
 func ConnectDB() (*pgxpool.Pool, error) {
 
-	err := godotenv.Load("../../.env")
+	err := godotenv.Load("../.env")
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load env %w", err)
