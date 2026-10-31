@@ -88,6 +88,10 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 			ctx.JSON(http.StatusUnauthorized, gin.H{
 				"error": "invalid email or password",
 			})
+			
+		case errors.Is(err,service.ErrIncorrectCredentials) :{
+			ctx.JSON(http.StatusBadRequest,gin.H{"error":err.Error()})
+		}
 
 		default:
 			ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -114,22 +118,31 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 		true, // HttpOnly
 	)
 
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "login successful",
 	})
 }
 
 func (h *UserHandler) GetProfile(ctx *gin.Context) {
-	userName := ctx.GetString("username")
+	value, exists := ctx.Get("userID")
 
-	if userName == "" {
+	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": "username missing",
+			"error": "userID missing",
 		})
 		return
 	}
 
-	user, err := h.service.GetProfile(ctx, userName)
+	userID, ok := value.(int64)
+
+	if !ok || userID <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid userID",
+		})
+		return
+	}
+	user, err := h.service.GetProfile(ctx, int64(userID))
 
 	if err != nil {
 		if errors.Is(err,service.ErrUserNotFound) {

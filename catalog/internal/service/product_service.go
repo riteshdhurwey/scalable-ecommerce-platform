@@ -162,7 +162,14 @@ func (s *ProductService) ListProductsByCategory(ctx context.Context,categoryID i
 	return products,*categoryName,err
 }
 
+func (s *ProductService) GetProductsByIDs(ctx context.Context,productIDs []int64)(*[]models.CartResponse,error){
 
+	products , err := s.repo.GetProductsByIDs(ctx,productIDs)
 
+	if err != nil {
+		return nil,err
+	}
 
+	return products,nil
 
+}

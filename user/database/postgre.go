@@ -11,11 +11,7 @@ import (
 
 func ConnectDB() (*pgxpool.Pool, error) {
 
-	err := godotenv.Load("../.env")
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to load env %w", err)
-	}
+	_ = godotenv.Load()
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		os.Getenv("DB_USER"),

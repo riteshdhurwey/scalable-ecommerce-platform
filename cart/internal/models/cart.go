@@ -1,6 +1,6 @@
 package models
 
-type CART struct {
+type Cart struct {
 	ProductID int64 `json:"product_id"`
 	Quantity  int `json:"quantity"`
 }
@@ -8,6 +8,13 @@ type CART struct {
 type Product struct {
     ProductID     int64  `json:"product_id"`
     Name          string `json:"name"`
-    Price         int64  `json:"price"`
-    StockQuantity int64  `json:"stock_quantity"`
+    Price         float64  `json:"price"`
+    StockQuantity int  `json:"stock_quantity"`
+}
+
+
+type BatchRequest struct {
+    ID  int64 `json:"id"`
+    Name string `json:"name"`
+    Price float64 `json:"price"`
 }

@@ -241,3 +241,30 @@ func (h *ProductHandler) ListProductsByCategory(ctx *gin.Context) {
 }
 
 
+func (h *ProductHandler) GetProductsByIDs(ctx *gin.Context){
+
+	type BatchProductRequest struct {
+		ProductIDs []int64 `json:"product_ids"`
+	}
+
+	var req BatchProductRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{
+            "error": err.Error(),
+        })
+        return
+    }
+
+	products,err := h.service.GetProductsByIDs(ctx.Request.Context(),req.ProductIDs)
+
+	if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+        })
+        return
+    }
+
+
+	ctx.JSON(http.StatusOK,products)
+}

@@ -16,4 +16,5 @@ type ProductRepository interface {
     DeleteProduct(ctx context.Context, productID int64) error
    // UpdateStock(ctx context.Context, productID int64, quantity int) error
 	CategoryExists(ctx context.Context,categoryID int64) (*int64,string,error)
+    GetProductsByIDs(ctx context.Context,productIDs []int64)(*[]models.CartResponse,error)
 }

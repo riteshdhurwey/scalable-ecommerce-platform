@@ -46,6 +46,20 @@ func (repo *UserRepo) GetByUserName(ctx context.Context, userName string) (*dto.
 	return &user, nil
 }
 
+func (repo *UserRepo) GetByUserID(ctx context.Context, userId int64) (*dto.UserResponse, error) {
+	query := `SELECT user_name,name,email,created_at FROM users WHERE user_id = $1;`
+
+	var user dto.UserResponse
+
+	err := repo.DB.QueryRow(ctx, query, userId).Scan(&user.UserName, &user.Name, &user.Email, &user.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func (repo *UserRepo) GetByEmail(ctx context.Context, email string) (*dto.UserResponse, error) {
 	query := `SELECT user_name,name,email,created_at FROM users WHERE email = $1;`
 
@@ -61,7 +75,7 @@ func (repo *UserRepo) GetByEmail(ctx context.Context, email string) (*dto.UserRe
 }
 
 func (repo *UserRepo) Update(ctx context.Context, user *model.User) (*dto.UserResponse, error) {
-	query := `UPDATE users SET name = $1, email = $2 WHERE user_name = $3 RETURNING created_at`
+	query := `UPDATE users SET name = $1, email = $2 WHERE user_name = $3 RETURNING created_at;`
 
 	var Created_At time.Time
 	err := repo.DB.QueryRow(ctx, query, user.Name, user.Email, user.UserName).Scan(&Created_At)
@@ -118,48 +132,48 @@ func (repo *UserRepo) EmailExists(ctx context.Context, email string) (bool, erro
 	return true, nil
 }
 
-func (repo *UserRepo) GetPasswordHash(ctx context.Context, req dto.LoginRequest) (string, string, error) {
+func (repo *UserRepo) GetPasswordHash(ctx context.Context, req dto.LoginRequest) (string, *int64, error) {
 	var query string
 	var args []any
 
 	switch {
-	case req.UserName != "" && req.Email != "":
-		query = `SELECT password_hash, user_name
+	case req.UserID != nil && req.Email != "":
+		query = `SELECT password_hash, user_id
 		         FROM users
-		         WHERE user_name = $1 AND email = $2
+		         WHERE user_id = $1 AND email = $2
 		         LIMIT 1`
-		args = []any{req.UserName, req.Email}
+		args = []any{req.UserID, req.Email}
 
-	case req.UserName != "":
-		query = `SELECT password_hash, user_name
+	case req.UserID != nil:
+		query = `SELECT password_hash, user_id
 		         FROM users
-		         WHERE user_name = $1
+		         WHERE user_id = $1
 		         LIMIT 1`
-		args = []any{req.UserName}
+		args = []any{req.UserID}
 
 	case req.Email != "":
-		query = `SELECT password_hash, user_name
+		query = `SELECT password_hash, user_id
 		         FROM users
 		         WHERE email = $1
 		         LIMIT 1`
 		args = []any{req.Email}
 
 	default:
-		return "", "", errors.New("user ID or email is required")
+		return "", nil, errors.New("user ID or email is required")
 	}
 
 	var passwordHash string
-	var userID string
+	var userID int64
 
 	err := repo.DB.QueryRow(ctx, query, args...).Scan(
 		&passwordHash,
 		&userID,
 	)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 
-	return passwordHash, userID, nil
+	return passwordHash, &userID, nil
 }
 
 

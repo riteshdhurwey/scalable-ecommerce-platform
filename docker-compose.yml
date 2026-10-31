@@ -1,0 +1,52 @@
+services:
+
+  # ---------------- USER SERVICE ----------------
+  user:
+    build: ./user
+    container_name: user-service
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${SECRET_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8081:8081"
+
+  # ---------------- CATALOG SERVICE ----------------
+  catalog:
+    build: ./catalog
+    container_name: catalog-service
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+
+  # ---------------- CART SERVICE ----------------
+  cart:
+    build: ./cart
+    container_name: cart-service
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${SECRET_KEY}
+      CATALOG_SERVICE_URL: http://catalog:8080
+    depends_on:
+      catalog:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8082:8082"

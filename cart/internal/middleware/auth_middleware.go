@@ -1,0 +1,62 @@
+package middleware
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/jwt"
+)
+
+func AuthMiddleware(ctx *gin.Context) {
+	tokenString, err := ctx.Cookie("authorization")
+	if err != nil || tokenString == "" {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "authentication required",
+		})
+		return
+	}
+
+	claims, err := jwt.ValidateToken(tokenString)
+	if err != nil {
+		if errors.Is(err, jwt.ErrExpiredToken) {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "token expired",
+			})
+			return
+		}
+
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid token",
+			
+		})
+
+		return
+	}
+
+	subject, ok := claims["sub"].(string)
+
+	if !ok {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid token claims",
+		})
+		return
+	}
+
+	userID, err := strconv.ParseInt(subject, 10, 64)
+
+	if err != nil || userID <= 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid token claims",
+		})
+		return
+	}
+
+	ctx.Set("userID", userID)
+	
+fmt.Println("USER ID SET:", userID)
+
+	ctx.Next()
+}

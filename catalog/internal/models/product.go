@@ -11,3 +11,10 @@ type Product struct {
     StockQuantity int32  `json:"stock_quantity"`
 	Created_At    time.Time `json:"created_at"`
 }
+
+type CartResponse struct {
+    ProductID  int64 `json:"id"`
+    Name       string `json:"name"`
+    Price     float64  `json:"price"`
+
+}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,20 +18,22 @@ var (
 )
 
 func GenerateAccessToken(req dto.LoginRequest) (string, error) {
-	secretKey := os.Getenv("SECRET_KEY")
-	if secretKey == "" {
+	_ = godotenv.Load()
+
+	secret := os.Getenv("JWT_SECRET")
+	if secret== "" {
 		return "", errors.New("JWT secret is not configured")
 	}
 
 	claims := jwt.MapClaims{
-		"sub": req.UserName,
+		"sub": strconv.FormatInt(*req.UserID, 10),
 		"iat": time.Now().Unix(),
 		"exp": time.Now().Add(15 * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(secretKey))
+	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign access token: %w", err)
 	}
@@ -39,12 +42,9 @@ func GenerateAccessToken(req dto.LoginRequest) (string, error) {
 }
 
 func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-	err := godotenv.Load("../../.env")
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to load env %w", err)
-	}
-	secret := os.Getenv("SECRET_KEY")
+_:
+	godotenv.Load()
+	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return nil, errors.New("JWT secret is not configured")
 	}

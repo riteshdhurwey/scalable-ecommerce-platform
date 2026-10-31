@@ -200,3 +200,35 @@ func (repo *PostgreDB) ListByCategory(
 
     return &products, nil
 }
+
+
+func (repo *PostgreDB) GetProductsByIDs(ctx context.Context,productIDs []int64)(*[]models.CartResponse,error){
+	query := `SELECT id,name,price FROM products WHERE id = ANY($1);`
+
+
+	var products []models.CartResponse
+
+	rows, err := repo.DB.Query(ctx,query,productIDs)
+
+    if err != nil {
+		return nil,err
+	}
+
+	for rows.Next(){
+
+		var product models.CartResponse
+
+		err := rows.Scan(&product.ProductID,&product.Name,&product.Price)
+
+		if  err != nil {
+			return nil,err
+		}
+
+		products = append(products, product)
+	}
+
+	defer rows.Close()
+
+
+	return &products,nil
+}

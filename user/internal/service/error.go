@@ -12,4 +12,5 @@ var (
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrExpiredToken       = errors.New("token expired")
+	ErrIncorrectCredentials = errors.New("incorrect email or password")
 )

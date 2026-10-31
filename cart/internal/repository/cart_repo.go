@@ -17,7 +17,7 @@ func InitCartRepo(db *pgxpool.Pool) *CartRepo {
 
 func (repo *CartRepo) CreateCart(ctx context.Context, user_id int64) (int64, error) {
 
-	query := `INSERT INTO carts (user_id) VALUES($1) RETURINING cart_id;`
+	query := `INSERT INTO carts (user_id) VALUES($1) RETURNING cart_id;`
 	var cartID int64
 	err := repo.DB.QueryRow(ctx, query, user_id).Scan(&cartID)
 
@@ -43,7 +43,7 @@ func (repo *CartRepo) IsCartExists(ctx context.Context, user_id int64) (*int64, 
 	return &cartID, nil
 }
 
-func (repo *CartRepo) AddToCart(ctx context.Context, cartID int64, req models.CART) error {
+func (repo *CartRepo) AddToCart(ctx context.Context, cartID int64, req models.Cart) error {
 	query := `INSERT INTO cart_items (cart_id, product_id, quantity)
 				  VALUES ($1, $2, $3)
 				  ON CONFLICT (cart_id, product_id)
@@ -59,3 +59,33 @@ func (repo *CartRepo) AddToCart(ctx context.Context, cartID int64, req models.CA
 	return nil
 }
 
+
+func (repo *CartRepo) GetCart(ctx context.Context,cartID int64)(*[]models.Cart,error){
+	
+	query := `SELECT product_id,quantity FROM cart_items WHERE cart_id = $1;`
+
+	row,err := repo.DB.Query(ctx,query,cartID)
+
+	if err != nil {
+		return nil,err
+	}
+
+	var products []models.Cart
+
+	for row.Next(){
+
+		var product models.Cart 
+
+		err := row.Scan(&product.ProductID,&product.Quantity)
+
+		if err != nil {
+			return nil,err
+		}
+
+		products = append(products, product)
+	}
+
+	defer row.Close()
+
+	return &products,nil
+}

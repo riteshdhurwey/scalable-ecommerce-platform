@@ -39,9 +39,10 @@ func main(){
 	router.POST("/api/v1/product",productHandler.CreateProduct)
 	router.GET("/api/v1/product/:id",productHandler.GetProductByID)
 	router.DELETE("/api/v1/product/:id",productHandler.DeleteProduct)
+	router.PATCH("/api/v1/product/:id",productHandler.UpdateProduct)
 	router.GET("/api/v1/products",productHandler.ListProducts)
-	router.PATCH("/api/v1//product/:id",productHandler.UpdateProduct)
 	router.GET("/api/v1/categories/:category_id/products",productHandler.ListProductsByCategory)
+	router.POST("/api/v1/products/batch",productHandler.GetProductsByIDs)
 
 	router.Run(":8080")
 }

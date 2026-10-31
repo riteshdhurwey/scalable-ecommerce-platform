@@ -86,16 +86,16 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*string,
 		return nil, ErrUserNotFound
 	}
 
-	passwordHash, userName, err := s.repo.GetPasswordHash(ctx, req)
+	passwordHash, userID, err := s.repo.GetPasswordHash(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("Password verified:", varifyPassword(req.Password, passwordHash))
 	if !varifyPassword(req.Password, passwordHash) {
-		return nil, ErrInvalidCredentials
+		return nil, ErrIncorrectCredentials
 	}
 
-	req.UserName = userName
+	req.UserID = userID
 
 	authToken, err := jwt.GenerateAccessToken(req)
 	if err != nil {
@@ -105,19 +105,9 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*string,
 	return &authToken, nil
 }
 
-func (s *UserService) GetProfile(ctx context.Context, userName string) (*dto.UserResponse, error) {
+func (s *UserService) GetProfile(ctx context.Context, userID int64) (*dto.UserResponse, error) {
 
-	userExist,err := s.repo.UserNameExists(ctx,userName)
-
-	if err != nil {
-		return nil,err
-	}
-
-	if !userExist {
-		return nil,ErrUserNotFound
-	}
-
-	user, err := s.repo.GetByUserName(ctx, userName)
+	user, err := s.repo.GetByUserID(ctx, userID)
 
 	if err != nil {
 		return nil, err
@@ -127,27 +117,27 @@ func (s *UserService) GetProfile(ctx context.Context, userName string) (*dto.Use
 
 }
 
-func (s *UserService) DeleteUser(ctx context.Context,userName string)(bool,error){
+func (s *UserService) DeleteUser(ctx context.Context, userName string) (bool, error) {
 
-	userExists,err := s.repo.UserNameExists(ctx,userName)
+	userExists, err := s.repo.UserNameExists(ctx, userName)
 
 	if err != nil {
-		return false,err
+		return false, err
 	}
 
 	if !userExists {
-		return false,ErrUserNotFound
+		return false, ErrUserNotFound
 	}
 
-	userDeleted,err := s.repo.DeleteUser(ctx,userName)
+	userDeleted, err := s.repo.DeleteUser(ctx, userName)
 
 	if err != nil {
-		return false,err
+		return false, err
 	}
 
 	if userDeleted == false {
-		return false,fmt.Errorf("failed to delete user %s",userName)
+		return false, fmt.Errorf("failed to delete user %s", userName)
 	}
 
-	return true,nil
+	return true, nil
 }

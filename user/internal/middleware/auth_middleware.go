@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/user/internal/jwt"
@@ -28,18 +30,33 @@ func AuthMiddleware(ctx *gin.Context) {
 
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid token",
+			
 		})
+
 		return
 	}
 
-	userName, ok := claims["sub"].(string)
-	if !ok || userName == "" {
+	subject, ok := claims["sub"].(string)
+
+	if !ok {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid token claims",
 		})
 		return
 	}
 
-	ctx.Set("username", userName)
+	userID, err := strconv.ParseInt(subject, 10, 64)
+
+	if err != nil || userID <= 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid token claims",
+		})
+		return
+	}
+
+	ctx.Set("userID", userID)
+	
+fmt.Println("USER ID SET:", userID)
+
 	ctx.Next()
 }
