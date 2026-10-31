@@ -38,6 +38,8 @@ func main(){
 
 	protected.GET("",handler.GetCart)
 	protected.POST("/product", handler.AddToCart)
+	protected.PATCH("/product/update",handler.UpdateCart)
+	protected.DELETE("/product/:id",handler.DeleteItem)
 
 	engine.Run(":8082")
 }

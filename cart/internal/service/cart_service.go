@@ -19,6 +19,7 @@ var (
 
 	ErrCartIDNotFound = errors.New("Cart Id not found")
 	ErrNoItemFound    = errors.New("No item found")
+	ErrProductNotFound = errors.New("product not found")
 )
 
 type CartSevice struct {
@@ -193,4 +194,60 @@ func (s *CartSevice) GetCart(ctx context.Context,userID int64)(*[]models.Product
 	return &products,nil
 
 
+}
+
+
+func (s *CartSevice) UpdateCart(ctx context.Context,userID int64,req models.Cart)(bool,error){
+
+	if req.Quantity <= 0 {
+		return false,fmt.Errorf("invalid input")
+	}
+	cartId,err := s.repo.IsCartExists(ctx,userID)
+
+    if err != nil {
+		return false,err
+	}
+
+	if cartId == nil {
+		return false,ErrCartIDNotFound
+	}
+
+	updated,err := s.repo.UpdateProduct(ctx,*cartId,req)
+
+	if err != nil {
+		return false,err
+	}
+
+	if !updated {
+		return false,ErrProductNotFound
+
+	}
+
+	return true,nil
+}
+
+func(s *CartSevice) DeleteItem(ctx context.Context,userID,productID int64)(error){
+
+	cartID,err := s.repo.IsCartExists(ctx,userID)
+
+	if err != nil {
+		return err
+	}
+
+	if cartID == nil {
+
+		return ErrCartIDNotFound
+	}
+
+	deleted,err := s.repo.DeleteItem(ctx,*cartID,productID)
+
+	if err != nil {
+		return err
+	}
+
+	if !deleted {
+		return ErrProductNotFound
+	}
+
+	return nil
 }

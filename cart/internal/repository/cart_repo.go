@@ -89,3 +89,39 @@ func (repo *CartRepo) GetCart(ctx context.Context,cartID int64)(*[]models.Cart,e
 
 	return &products,nil
 }
+
+
+func (repo *CartRepo) UpdateProduct(ctx context.Context,cartID int64,req models.Cart)(bool,error){
+
+	query := `UPDATE cart_items SET quantity = $1 WHERE cart_id = $2 AND product_id = $3;`
+
+	result,err := repo.DB.Exec(ctx,query,req.Quantity,cartID,req.ProductID)
+
+	if err != nil {
+		return false, err
+	}
+
+	if result.RowsAffected() == 0 {
+		return false,nil
+	}
+
+	return true,nil
+}
+
+
+func (repo *CartRepo) DeleteItem(ctx context.Context,cartID int64,productID int64)(bool,error){
+
+	query := `DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2;`
+
+	result,err := repo.DB.Exec(ctx,query,cartID,productID)
+
+	if err != nil {
+		return false,err
+	}
+
+	if result.RowsAffected() == 0 {
+		return false,nil
+	}
+
+	return true,nil
+}
