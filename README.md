@@ -54,21 +54,22 @@ The platform is being developed as a collection of independently organized backe
 
 ```text
 scalable-ecommerce-platform/
-├── services/
-│   ├── user/
-│   │   ├── cmd/api/
-│   │   ├── database/
-│   │   ├── internal/
-│   │   │   ├── dto/
-│   │   │   ├── handler/
-│   │   │   ├── jwt/
-│   │   │   ├── middleware/
-│   │   │   ├── model/
-│   │   │   ├── repository/
-│   │   │   ├── routes/
-│   │   │   └── service/
-│   │   └── migrations/
-│   └── catalog/
+├
+│── cart/
+├── user/
+│   ├── cmd/api/
+│   ├── database/
+│   ├── internal/
+│   │   ├── dto/
+│   │   ├── handler/
+│   │   ├── jwt/
+│   │   ├── middleware/
+│   │   ├── model/
+│   │   ├── repository/
+│   │   ├── routes/
+│   │   └── service/
+│   └── migrations/
+│── catalog/
 │       ├── cmd/
 │       │   ├── api/
 │       │   └── seed/
@@ -81,6 +82,7 @@ scalable-ecommerce-platform/
 │       │   └── service/
 │       └── migrations/
 └── README.md
+│── docker-compose.yml
 ```
 
 ## Prerequisites
@@ -135,9 +137,9 @@ These commands currently verify package compilation. Automated unit and integrat
 
 ## Roadmap
 
-- [ ] Complete JWT authentication middleware and protected endpoints.
-- [ ] Add product filtering, update/delete operations, and inventory validation.
-- [ ] Implement cart management and persistence.
+- [x] Complete JWT authentication middleware and protected endpoints.
+- [x] Add product filtering, update/delete operations, and inventory validation.
+- [x] Implement cart management and persistence.
 - [ ] Implement order creation and order lifecycle management.
 - [ ] Integrate payment processing and notifications.
 - [ ] Integrate Redis where appropriate for caching and asynchronous processing.
