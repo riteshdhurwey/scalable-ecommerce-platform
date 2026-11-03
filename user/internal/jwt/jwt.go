@@ -42,8 +42,7 @@ func GenerateAccessToken(req dto.LoginRequest) (string, error) {
 }
 
 func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-_:
-	godotenv.Load()
+	_ : godotenv.Load()
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return nil, errors.New("JWT secret is not configured")

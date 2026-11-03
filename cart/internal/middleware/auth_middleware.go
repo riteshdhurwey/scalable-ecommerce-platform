@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -12,6 +11,7 @@ import (
 
 func AuthMiddleware(ctx *gin.Context) {
 	tokenString, err := ctx.Cookie("authorization")
+
 	if err != nil || tokenString == "" {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "authentication required",
@@ -55,8 +55,6 @@ func AuthMiddleware(ctx *gin.Context) {
 	}
 
 	ctx.Set("userID", userID)
-	
-fmt.Println("USER ID SET:", userID)
 
 	ctx.Next()
 }

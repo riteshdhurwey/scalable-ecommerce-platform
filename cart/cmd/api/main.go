@@ -37,9 +37,10 @@ func main(){
 	protected.Use(middleware.AuthMiddleware)
 
 	protected.GET("",handler.GetCart)
+	protected.GET("/checkout",handler.CheckOut)
 	protected.POST("/product", handler.AddToCart)
 	protected.PATCH("/product/update",handler.UpdateCart)
 	protected.DELETE("/product/:id",handler.DeleteItem)
-
+	protected.DELETE("/delete",handler.ClearCart)
 	engine.Run(":8082")
 }

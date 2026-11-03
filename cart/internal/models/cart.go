@@ -17,4 +17,12 @@ type BatchRequest struct {
     ID  int64 `json:"id"`
     Name string `json:"name"`
     Price float64 `json:"price"`
+    AvailableStock int `json:"stock_quantity"`
+}
+
+type OutOfStockProducts struct {
+	ProductID int64 `json:"product_id"`
+    Name string `json:"name"`
+	OrderedStock int `json:"ordered_stock"`
+    AvailableStock int `json:"available_stock"`
 }

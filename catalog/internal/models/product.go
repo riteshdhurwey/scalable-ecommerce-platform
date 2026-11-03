@@ -16,5 +16,6 @@ type CartResponse struct {
     ProductID  int64 `json:"id"`
     Name       string `json:"name"`
     Price     float64  `json:"price"`
+    AvailableStock int  `json:"stock_quantity"`
 
 }

@@ -203,7 +203,7 @@ func (repo *PostgreDB) ListByCategory(
 
 
 func (repo *PostgreDB) GetProductsByIDs(ctx context.Context,productIDs []int64)(*[]models.CartResponse,error){
-	query := `SELECT id,name,price FROM products WHERE id = ANY($1);`
+	query := `SELECT id,name,price,stock_quantity FROM products WHERE id = ANY($1);`
 
 
 	var products []models.CartResponse
@@ -218,7 +218,7 @@ func (repo *PostgreDB) GetProductsByIDs(ctx context.Context,productIDs []int64)(
 
 		var product models.CartResponse
 
-		err := rows.Scan(&product.ProductID,&product.Name,&product.Price)
+		err := rows.Scan(&product.ProductID,&product.Name,&product.Price,&product.AvailableStock)
 
 		if  err != nil {
 			return nil,err

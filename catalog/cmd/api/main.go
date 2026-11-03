@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/database"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/handler"
@@ -29,6 +28,9 @@ func main(){
 
 	categoryService := service.InitCategoryService(*repo)
 	categoryHandler := handler.InitCategoryHandler(categoryService)
+	InventoryRepo := repository.InitInventoryRepo(DB)
+	InventoryService := service.InitInventoryService(InventoryRepo)
+	InventoryHandler := handler.InitInventoryHandler(InventoryService)
 
 	productService := service.InitProductService(repo)
 	productHandler := handler.InitProductHandler(productService)
@@ -43,6 +45,8 @@ func main(){
 	router.GET("/api/v1/products",productHandler.ListProducts)
 	router.GET("/api/v1/categories/:category_id/products",productHandler.ListProductsByCategory)
 	router.POST("/api/v1/products/batch",productHandler.GetProductsByIDs)
+
+	router.POST("/api/v1/inventory/reserve",InventoryHandler.ReserveInventory)
 
 	router.Run(":8080")
 }

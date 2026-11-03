@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/models"
 )
@@ -124,4 +123,32 @@ func (repo *CartRepo) DeleteItem(ctx context.Context,cartID int64,productID int6
 	}
 
 	return true,nil
+}
+
+
+func (repo *CartRepo) ClearCart(ctx context.Context, userID int64) error{
+	query := `DELETE FROM carts WHERE user_id = $1`
+
+	_,err := repo.DB.Exec(ctx,query,userID)
+
+	if err != nil{
+		return err
+	}
+
+	return nil
+
+}
+
+func (repo *CartRepo) GetCartProductByID(ctx context.Context,cart_id,productID int64)(int,error){
+
+
+	query := `SELECT quantity FROM cart_items WHERE cart_id = $1 AND product_id = $2;`
+	var quantity int
+	err := repo.DB.QueryRow(ctx,query,cart_id,productID).Scan(&quantity)
+
+	if err != nil{
+		return 0,err
+	}
+
+	return quantity,nil
 }
