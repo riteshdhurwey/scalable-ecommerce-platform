@@ -1,96 +1,143 @@
 # Scalable E-Commerce Platform
 
-A backend-focused e-commerce platform built with **Go, PostgreSQL, Redis, and REST APIs**, designed around microservices architecture. The project focuses on clean service boundaries, authentication, database design, concurrency, and building reliable backend systems.
+A backend-focused e-commerce platform built with **Go, PostgreSQL, Redis, and REST APIs**, following a microservices architecture.
+
+The project focuses on clean service boundaries, authentication, database design, concurrency control, inventory management, and building reliable backend systems.
 
 ## Tech Stack
 
-- **Language:** Go
-- **HTTP Framework:** Gin
-- **Database:** PostgreSQL
-- **Cache and Queueing:** Redis (planned integration across additional services)
-- **Authentication:** JWT and HTTP cookies
-- **Password Security:** bcrypt
-- **Testing:** Go testing framework
-- **Load Testing:** k6
-- **Containerization:** Docker (planned/in progress)
+| Category | Technology |
+|---|---|
+| Language | Go |
+| HTTP Framework | Gin |
+| Database | PostgreSQL |
+| Cache | Redis |
+| Authentication | JWT, HTTP Cookies |
+| Password Security | bcrypt |
+| API Communication | REST / HTTP |
+| Testing | Go Testing |
+| Load Testing | k6 |
+| Containerization | Docker / Docker Compose |
+| Version Control | Git / GitHub |
+
+Some infrastructure components and integrations are planned or under development.
 
 ## Architecture
 
-The platform is being developed as a collection of independently organized backend services.
+The platform is organized into independently developed backend services.
 
 | Service | Responsibility | Status |
 |---|---|---|
-| User Service | User registration, login, password hashing, JWT authentication | Implemented |
-| Catalog Service | Product and category management | Core features implemented |
-| Cart Service | Shopping cart management | Planned |
-| Order Service | Order creation and lifecycle management | Planned |
-| Payment Service | Payment workflow and status management | Planned |
+| User Service | Registration, login, password hashing, JWT authentication | Implemented |
+| Catalog Service | Product and category management, product listing and filtering | Core features implemented |
+| Cart Service | Shopping cart management and product quantity handling | In Progress |
+| Order Service | Order creation, inventory reservation, and order lifecycle | In Progress |
+| Payment Service | Payment processing and payment status management | Planned |
 | Notification Service | Order and payment notifications | Planned |
+
+For detailed service boundaries, communication patterns, and infrastructure decisions, see [Architecture Documentation](docs/architecture.md).
 
 ## Implemented Features
 
 ### User Service
 
-- Create user accounts with input validation.
-- Validate email addresses and check for duplicate email addresses and user IDs.
-- Hash passwords using bcrypt.
-- Verify passwords during login.
-- Generate JWT access tokens.
-- Set authentication cookies with a 15-minute lifetime.
-- Organize code into handler, service, repository, middleware, and model layers.
-- Define database migrations for user data.
+- User registration with input validation.
+- Email validation and duplicate email/user ID checks.
+- Password hashing using bcrypt.
+- Password verification during login.
+- JWT access token generation.
+- HTTP authentication cookies with a 15-minute lifetime.
+- Protected endpoints using authentication middleware.
+- Layered architecture with handlers, services, repositories, middleware, and models.
+- Database migrations for user data.
 
 ### Catalog Service
 
-- Create and retrieve product records.
-- Create and retrieve product categories.
-- Retrieve products by category.
-- Implement pagination for product listings.
-- Use PostgreSQL for persistent storage.
-- Organize code into handlers, services, repositories, DTOs, and models.
-- Define database migrations for categories and products.
+- Product creation and retrieval.
+- Product category creation and retrieval.
+- Product listing with pagination.
+- Product filtering by category.
+- Category information in product responses.
+- PostgreSQL integration.
+- Layered architecture using handlers, services, repositories, DTOs, and models.
+- Database migrations for products and categories.
+
+### Cart and Order Services
+
+Currently under development.
+
+The design includes:
+
+- Cart item management.
+- Product information retrieval from Catalog Service.
+- Quantity validation.
+- Order creation and order item snapshots.
+- Inventory reservation.
+- Order expiration and inventory release.
 
 ## Project Structure
 
 ```text
 scalable-ecommerce-platform/
-├
-│── cart/
-├── user/
-│   ├── cmd/api/
-│   ├── database/
-│   ├── internal/
-│   │   ├── dto/
-│   │   ├── handler/
-│   │   ├── jwt/
-│   │   ├── middleware/
-│   │   ├── model/
-│   │   ├── repository/
-│   │   ├── routes/
-│   │   └── service/
-│   └── migrations/
-│── catalog/
-│       ├── cmd/
-│       │   ├── api/
-│       │   └── seed/
-│       ├── internal/
-│       │   ├── database/
-│       │   ├── dto/
-│       │   ├── handler/
-│       │   ├── models/
-│       │   ├── repository/
-│       │   └── service/
-│       └── migrations/
+├── services/
+│   ├── user/
+│   │   ├── cmd/
+│   │   │   └── api/
+│   │   ├── database/
+│   │   ├── internal/
+│   │   │   ├── dto/
+│   │   │   ├── handler/
+│   │   │   ├── jwt/
+│   │   │   ├── middleware/
+│   │   │   ├── model/
+│   │   │   ├── repository/
+│   │   │   ├── routes/
+│   │   │   └── service/
+│   │   └── migrations/
+│   │
+│   ├── catalog/
+│   │   ├── cmd/
+│   │   │   ├── api/
+│   │   │   └── seed/
+│   │   ├── internal/
+│   │   │   ├── database/
+│   │   │   ├── dto/
+│   │   │   ├── handler/
+│   │   │   ├── models/
+│   │   │   ├── repository/
+│   │   │   └── service/
+│   │   └── migrations/
+│   │
+│   ├── cart/
+│   └── order/
+│
+├── deployments/
+│   └── docker-compose.yml
+│
+├── docs/
+│   ├── README.md
+│   ├── architecture.md
+│   ├── checkout-workflow.md
+│   ├── service-workflows.md
+│   ├── failure-recovery.md
+│   ├── data-ownership.md
+│   ├── development-roadmap.md
+│   └── testing-and-scalability.md
+│
+├── .github/
+│   └── workflows/
+│
+├── .gitignore
 └── README.md
-│── docker-compose.yml
 ```
 
 ## Prerequisites
 
-- Go installed
-- PostgreSQL running
-- Git installed
-- Redis and Docker when required by the additional services being developed
+- Go
+- PostgreSQL
+- Git
+
+Redis and Docker are required for the corresponding infrastructure integrations as they are introduced.
 
 ## Run Locally
 
@@ -101,7 +148,7 @@ git clone https://github.com/riteshdhurwey/scalable-ecommerce-platform.git
 cd scalable-ecommerce-platform
 ```
 
-Run the User Service:
+### Start User Service
 
 ```bash
 cd services/user
@@ -109,7 +156,9 @@ go mod download
 go run ./cmd/api
 ```
 
-Run the Catalog Service in a separate terminal:
+### Start Catalog Service
+
+Open another terminal:
 
 ```bash
 cd services/catalog
@@ -117,11 +166,13 @@ go mod download
 go run ./cmd/api
 ```
 
-Configure the database connection and other required settings according to each service's configuration before starting it. Apply the relevant database migrations before using endpoints that require the corresponding tables.
+Configure the required environment variables and PostgreSQL database connections before starting each service.
+
+Apply the corresponding database migrations before using the APIs.
 
 ## Testing
 
-Run the available Go tests for each service:
+Run tests for each service:
 
 ```bash
 cd services/user
@@ -133,28 +184,53 @@ cd services/catalog
 go test ./...
 ```
 
-These commands currently verify package compilation. Automated unit and integration test coverage is still being developed.
+The test suite is still being expanded. Package compilation alone should not be considered evidence of comprehensive test coverage.
+
+## Documentation
+
+Detailed architecture and implementation decisions are maintained separately.
+
+| Document | Description |
+|---|---|
+| [Architecture](docs/architecture.md) | Service boundaries, communication, and infrastructure |
+| [Checkout Workflow](docs/checkout-workflow.md) | Order placement, inventory reservation, and payment |
+| [Service Workflows](docs/service-workflows.md) | Responsibilities and workflows of individual services |
+| [Failure Recovery](docs/failure-recovery.md) | Retries, idempotency, timeouts, and recovery |
+| [Data Ownership](docs/data-ownership.md) | Database ownership and persistence rules |
+| [Development Roadmap](docs/development-roadmap.md) | Implementation phases and planned features |
+| [Testing and Scalability](docs/testing-and-scalability.md) | Testing, concurrency, reliability, and performance |
 
 ## Roadmap
 
-- [x] Complete JWT authentication middleware and protected endpoints.
-- [x] Add product filtering, update/delete operations, and inventory validation.
-- [x] Implement cart management and persistence.
-- [ ] Implement order creation and order lifecycle management.
-- [ ] Integrate payment processing and notifications.
-- [ ] Integrate Redis where appropriate for caching and asynchronous processing.
+- [x] User registration and authentication.
+- [x] JWT authentication middleware and protected endpoints.
+- [x] Product and category management.
+- [x] Product listing, filtering, and pagination.
+- [ ] Complete Cart Service.
+- [ ] Complete Order Service and checkout workflow.
+- [ ] Implement inventory reservation and release.
+- [ ] Integrate payment processing.
+- [ ] Implement order expiration and recovery workers.
+- [ ] Integrate Redis where appropriate.
+- [ ] Introduce asynchronous messaging with RabbitMQ.
 - [ ] Add Docker-based local development.
-- [ ] Add unit and integration tests.
-- [ ] Add structured logging, metrics, tracing, and health checks.
+- [ ] Expand unit, integration, and end-to-end tests.
+- [ ] Add structured logging, metrics, and tracing.
 - [ ] Add CI workflows and performance benchmarks.
 
-## Goals
+## Project Goals
 
-The goal is to develop a production-oriented backend that demonstrates practical skills in:
+The project aims to demonstrate practical backend engineering skills:
 
-- Go backend development and REST API design
-- Microservices architecture and service boundaries
-- PostgreSQL schema design and query optimization
-- Authentication and security fundamentals
-- Caching, concurrency, and distributed systems
-- Automated testing, observability, and reliability
+- Go backend development and REST API design.
+- Microservices architecture and service boundaries.
+- PostgreSQL schema design and query optimization.
+- Authentication and security fundamentals.
+- Inventory management and concurrency control.
+- Caching and asynchronous processing.
+- Distributed systems fundamentals.
+- Automated testing, observability, and reliability.
+
+---
+
+**Development Status:** Actively under development.
