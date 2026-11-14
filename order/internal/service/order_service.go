@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/repository"
 )
@@ -35,7 +34,16 @@ func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*
 
 	url := cartURL + "/api/v1/cart/checkout"
 
-	request,err := http.NewRequestWithContext(ctx,http.MethodGet,url,nil)
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		url,
+		nil,
+	)
+
+	if err != nil {
+		return nil, nil, 0, err
+	}
 
 	request.AddCookie(&http.Cookie{
 		Name:  "authorization",
@@ -115,30 +123,34 @@ func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*
 
 	catalogURL := catalogBaseURL + "/api/v1/inventory/reserve"
 
-	reserveReq,err := http.NewRequest(http.MethodPost,catalogURL,bytes.NewBuffer(jsonData))
-
-	if err != nil{
-
-		return nil,nil,0,err
+	reserveReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		catalogURL,
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return nil, nil, 0, err
 	}
 
-	reserveResp,err := http.DefaultClient.Do(reserveReq)
-
-	if err != nil{
-		return nil,nil,0,err
+	client := &http.Client{
+		Timeout: 5 * time.Second,
 	}
 
-	defer reserveResp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusConflict{
-			return nil,nil,0,ErrEmptyCart
-		}
+	reserveResp, err := client.Do(reserveReq)
+	if err != nil {
 		return nil, nil, 0, fmt.Errorf(
-			"cart service returned status %d: ",
-			resp.StatusCode,
+			"inventory reservation request failed: %w", err,
 		)
 	}
+	defer reserveResp.Body.Close()
+
+	if reserveResp.StatusCode != http.StatusOK {
+    return nil, nil, 0, fmt.Errorf(
+        "inventory reservation failed with status %d",
+        reserveResp.StatusCode,
+    )
+}
 	var products[]models.OrderItems
 
 	for _,p := range AvailableProducts {

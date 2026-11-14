@@ -20,57 +20,66 @@ func InitUserService(repo *repository.UserRepo) *UserService {
 
 func (s *UserService) Create(ctx context.Context, req *dto.RegisterRequest) (*dto.UserResponse, error) {
 
-	if !isValidInput(*req) {
-		return nil, ErrInvalidInput
-	}
 
-	emailErr := isValidEmail(req.Email)
-	if emailErr != nil {
-		return nil, emailErr
-	}
+    if !isValidInput(*req) {
+        return nil, ErrInvalidInput
+    }
 
-	passErr := validatePassword(req.Password)
+    if err := isValidEmail(req.Email); err != nil {
+        return nil, err
+    }
 
-	if passErr != nil {
-		return nil, passErr
-	}
+    if err := validatePassword(req.Password); err != nil {
+        return nil, err
+    }
 
-	userIDExists, err := s.repo.UserNameExists(ctx, req.UserName)
 
-	if err != nil {
-		return nil, err
-	}
-	if userIDExists {
-		return nil, ErrUserIDRegistered
-	}
+    userIDExists, err := s.repo.UserNameExists(ctx, req.UserName)
+    if err != nil {
+        return nil, err
+    }
 
-	emailExists, err := s.repo.EmailExists(ctx, req.Email)
 
-	if err != nil {
-		return nil, err
-	}
+    if userIDExists {
+        return nil, ErrUserIDRegistered
+    }
 
-	if emailExists {
-		return nil, ErrEmailRegistered
-	}
+    emailExists, err := s.repo.EmailExists(ctx, req.Email)
+    if err != nil {
+        return nil, err
+    }
 
-	passwordHash, err := HashPassword(req.Password)
 
-	if err != nil {
-		return nil, fmt.Errorf("Password Hash %w", err)
-	}
+    if emailExists {
+        return nil, ErrEmailRegistered
+    }
 
-	user := model.User{UserName: req.UserName, Name: req.Name, Email: req.Email, PasswordHash: passwordHash}
 
-	err = s.repo.Create(ctx, &user)
+    passwordHash, err := HashPassword(req.Password)
+    if err != nil {
+        return nil, fmt.Errorf("password hash: %w", err)
+    }
 
-	if err != nil {
-		return nil, err
-	}
 
-	userResponce := dto.UserResponse{UserName: req.UserName, Name: req.Name, Email: req.Email}
+    user := model.User{
+        UserName:     req.UserName,
+        Name:         req.Name,
+        Email:        req.Email,
+        PasswordHash: passwordHash,
+    }
 
-	return &userResponce, nil
+
+    err = s.repo.Create(ctx, &user)
+    if err != nil {
+        return nil, err
+    }
+
+
+    return &dto.UserResponse{
+        UserName: req.UserName,
+        Name:     req.Name,
+        Email:    req.Email,
+    }, nil
 }
 
 func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*string, error) {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/repository"
@@ -21,7 +22,9 @@ func (s *InventoryService) ReserveInventory(ctx context.Context,req models.Reser
 		return ErrInvalidProduct
 	}
 
-	_,err := s.repo.ReserveInvetory(ctx,req)
+	expiresAt := time.Now().Add(10 * time.Minute)
+
+	_,err := s.repo.ReserveInvetory(ctx,req,expiresAt)
 
 	if err != nil{
 		return err

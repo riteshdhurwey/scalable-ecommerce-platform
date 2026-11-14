@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/models"
@@ -50,9 +52,17 @@ func (h *CartHandler)AddToCart(ctx *gin.Context){
 		return
 	}
 
-	orderProduct,err := h.service.AddToCart(ctx,int64(userID),product)
+	requestCtx,cancel := context.WithTimeout(ctx.Request.Context(),10 * time.Second)
+
+	defer cancel()
+	orderProduct,err := h.service.AddToCart(requestCtx,int64(userID),product)
 
 	if  err != nil {
+		if errors.Is(err,context.DeadlineExceeded){
+			ctx.JSON(http.StatusGatewayTimeout,gin.H{
+				"error":"request time out",
+			})
+		}
 		ctx.JSON(http.StatusBadRequest,gin.H{"error":err.Error()})
 		return
 	}
@@ -244,8 +254,13 @@ func (h *CartHandler) CheckOut(ctx *gin.Context){
 		return
 	}
 
+	if outOfStockProducts != nil {
+		ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products,"out of stock":outOfStockProducts})
+		return
+	}
 
-	ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products,"out of stock":outOfStockProducts})
+
+	ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products})
 }
 
 func (h *CartHandler) ClearCart(c *gin.Context) {

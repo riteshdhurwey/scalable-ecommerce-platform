@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,7 +19,7 @@ func InitInventoryRepo(db *pgxpool.Pool) *InventoryRepo{
 	return &InventoryRepo{DB: db}
 }
 
-func (repo *InventoryRepo) ReserveInvetory(ctx context.Context,req models.ReservationRequest)(bool,error){
+func (repo *InventoryRepo) ReserveInvetory(ctx context.Context,req models.ReservationRequest,expireAt time.Time)(bool,error){
 
 
 	tx,err := repo.DB.Begin(ctx)
@@ -56,10 +57,10 @@ func (repo *InventoryRepo) ReserveInvetory(ctx context.Context,req models.Reserv
 	var rows[][]interface{}
 
 	for _,p := range req.Items {
-		rows = append(rows, []interface{}{req.OrderID,p.ProductID,p.Quantity})
+		rows = append(rows, []interface{}{req.OrderID,p.ProductID,p.Quantity,expireAt})
 	}
 
-	_,err = repo.DB.CopyFrom(ctx,pgx.Identifier{"inventory_reservations"},[]string{"order_id","product_id","quantity"},pgx.CopyFromRows(rows))
+	_,err = repo.DB.CopyFrom(ctx,pgx.Identifier{"inventory_reservations"},[]string{"order_id","product_id","quantity","expires_at"},pgx.CopyFromRows(rows))
 
 	if  err != nil {
 		return false,err

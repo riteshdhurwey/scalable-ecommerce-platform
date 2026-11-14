@@ -20,16 +20,25 @@ func InitUserRepo(DB *pgxpool.Pool) *UserRepo {
 }
 
 func (repo *UserRepo) Create(ctx context.Context, user *model.User) error {
-	query := `INSERT INTO users (user_name,name,email,password_hash) VALUES ($1,$2,$3,$4);`
+    query := `
+        INSERT INTO users (user_name, name, email, password_hash)
+        VALUES ($1, $2, $3, $4);
+    `
 
-	err := repo.DB.QueryRow(ctx, query, user.UserName, user.Name, user.Email, user.PasswordHash)
+    _, err := repo.DB.Exec(
+        ctx,
+        query,
+        user.UserName,
+        user.Name,
+        user.Email,
+        user.PasswordHash,
+    )
 
-	if err != nil {
-		return ctx.Err()
-	}
+    if err != nil {
+        return err
+    }
 
-	return nil
-
+    return nil
 }
 
 func (repo *UserRepo) GetByUserName(ctx context.Context, userName string) (*dto.UserResponse, error) {

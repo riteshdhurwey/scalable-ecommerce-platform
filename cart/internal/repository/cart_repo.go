@@ -49,10 +49,10 @@ func (repo *CartRepo) AddToCart(ctx context.Context, cartID int64, req models.Ca
 				  DO UPDATE
 				  SET quantity = cart_items.quantity + EXCLUDED.quantity;`
 
-	err := repo.DB.QueryRow(ctx,query,cartID,req.ProductID,req.Quantity)
+	_,err := repo.DB.Exec(ctx,query,cartID,req.ProductID,req.Quantity)
 
 	if err != nil {
-		return ctx.Err()
+		return err
 	}
 
 	return nil
@@ -63,30 +63,29 @@ func (repo *CartRepo) GetCart(ctx context.Context,cartID int64)(*[]models.Cart,e
 	
 	query := `SELECT product_id,quantity FROM cart_items WHERE cart_id = $1;`
 
-	row,err := repo.DB.Query(ctx,query,cartID)
-
+	row, err := repo.DB.Query(ctx, query, cartID)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
+	defer row.Close()
 
 	var products []models.Cart
 
-	for row.Next(){
+	for row.Next() {
+		var product models.Cart
 
-		var product models.Cart 
-
-		err := row.Scan(&product.ProductID,&product.Quantity)
-
-		if err != nil {
-			return nil,err
+		if err := row.Scan(&product.ProductID, &product.Quantity); err != nil {
+			return nil, err
 		}
 
 		products = append(products, product)
 	}
 
-	defer row.Close()
+	if err := row.Err(); err != nil {
+		return nil, err
+	}
 
-	return &products,nil
+	return &products, nil
 }
 
 
@@ -127,7 +126,7 @@ func (repo *CartRepo) DeleteItem(ctx context.Context,cartID int64,productID int6
 
 
 func (repo *CartRepo) ClearCart(ctx context.Context, userID int64) error{
-	query := `DELETE FROM carts WHERE user_id = $1`
+	query := `DELETE FROM cart_items WHERE cart_id = $1`
 
 	_,err := repo.DB.Exec(ctx,query,userID)
 

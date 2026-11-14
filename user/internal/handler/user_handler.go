@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/user/internal/dto"
@@ -19,19 +21,29 @@ func InitUserHandler(service *service.UserService) *UserHandler {
 
 func (h *UserHandler) Create(ctx *gin.Context) {
 
-	var req dto.RegisterRequest
+	requestCtx, cancel := context.WithTimeout(ctx.Request.Context(), 10*time.Second)
+    defer cancel()
 
-	err := ctx.ShouldBindJSON(&req)
+    var req dto.RegisterRequest
 
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    err := ctx.ShouldBindJSON(&req)
+    if err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
 
-	user, userErr := h.service.Create(ctx, &req)
+    user, userErr := h.service.Create(requestCtx, &req)
+
+
 
 	if userErr != nil {
 		switch {
+		case errors.Is(err, context.DeadlineExceeded): {
+            ctx.JSON(http.StatusGatewayTimeout, gin.H{
+                "error": "registration request timed out",
+            })
+            return
+        }
 		case errors.Is(userErr, service.ErrInvalidInput):
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": userErr.Error(),
@@ -71,6 +83,10 @@ func (h *UserHandler) Create(ctx *gin.Context) {
 func (h *UserHandler) Login(ctx *gin.Context) {
 	var request dto.LoginRequest
 
+	requestCtx, cancel := context.WithTimeout(ctx.Request.Context(), 10*time.Second)
+    defer cancel()
+
+
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request body",
@@ -78,9 +94,14 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	authToken, err := h.service.Login(ctx, request)
+	authToken, err := h.service.Login(requestCtx, request)
 	if err != nil {
 		switch {
+		case errors.Is(err, context.DeadlineExceeded): 
+            ctx.JSON(http.StatusGatewayTimeout, gin.H{
+                "error": "registration request timed out",
+            })
+
 		case errors.Is(err, service.ErrUserNotFound):
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
 
