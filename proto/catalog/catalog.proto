@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package catalog;
+
+option go_package = "github.com/riteshdhurwey/scalable-ecommerce-platform/proto/catalog";
+
+message GetProductsRequest {
+   repeated int64 id = 1;
+}
+
+message GetProductRequest {
+    int64 id = 1;
+}
+
+message product {
+    int64 id = 1;
+    string name = 2;
+    double price = 3;
+    int32 quantity = 4;
+}
+
+message GetProductsResponse{
+    repeated product products = 1;
+}
+
+message ReservationItem {
+   int64 product_id = 1;
+   int32 quantity = 2;
+}
+
+message ReserveInventoryRequest{
+    int64 order_id = 1;
+    repeated ReservationItem ReservationItems = 2;
+}
+
+message ReserveInventoryResponse{
+    bool done = 1;
+}
+
+service CatalogService {
+    rpc GetProduct(GetProductRequest)
+        returns (product);
+    rpc GetProducts(GetProductsRequest)
+        returns (GetProductsResponse);
+    rpc ReserveInventory(ReserveInventoryRequest)
+        returns (ReserveInventoryResponse);
+}
+
+

@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package cart;
+
+option go_package = "github.com/riteshdhurwey/scalable-ecommerce-platform/proto/cart";
+
+message product {
+    int64 ID = 1;
+    string Name = 2;
+    double Price = 3;
+    int32  Quantity = 4;
+}
+
+message outOfStockProduct {
+    int64 ID = 1;
+    string Name = 2;
+    int32 OrderedQuantity = 3;
+    int32 AvailableQuantity = 4;
+}
+
+message GetCartResponse {
+    double TotalAmount = 1;
+    repeated product products = 2;
+    repeated outOfStockProduct outOfStockProducts = 3;
+}
+
+message GetCartRequest {
+    int64 userID = 1;
+}
+
+message ClearCartRequest {
+    int64 userID = 1;
+}
+
+message ClearCartResponse {
+    bool done = 1;
+}
+
+service CartService {
+
+    rpc GetCart(GetCartRequest)
+        returns (GetCartResponse);
+    rpc ClearCart (ClearCartRequest)
+        returns (ClearCartResponse);
+}
