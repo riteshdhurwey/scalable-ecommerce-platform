@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/database"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/handler"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/repository"
+	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/server"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/service"
 )
 
@@ -22,6 +25,9 @@ func main(){
 
 	fmt.Println("Connected To Database")
 
+
+
+
 	router := gin.Default()
 
 	repo := repository.NewPostgreRepo(DB)
@@ -30,10 +36,21 @@ func main(){
 	categoryHandler := handler.InitCategoryHandler(categoryService)
 	InventoryRepo := repository.InitInventoryRepo(DB)
 	InventoryService := service.InitInventoryService(InventoryRepo)
-	InventoryHandler := handler.InitInventoryHandler(InventoryService)
+	_= handler.InitInventoryHandler(InventoryService)
 
 	productService := service.InitProductService(repo)
 	productHandler := handler.InitProductHandler(productService)
+
+	catalogHandler := handler.InitCatalogGRPCHandler(productService,InventoryService)
+
+	go func() {
+		if err := server.StartGRPCServer(
+			":50051",
+			catalogHandler,
+		); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
 
 	router.POST("/api/v1/category",categoryHandler.CreateCategory)
 	router.GET("/api/v1/categories",categoryHandler.GetCategories)
@@ -46,7 +63,7 @@ func main(){
 	router.GET("/api/v1/categories/:category_id/products",productHandler.ListProductsByCategory)
 	router.POST("/api/v1/products/batch",productHandler.GetProductsByIDs)
 
-	router.POST("/api/v1/inventory/reserve",InventoryHandler.ReserveInventory)
+	// router.POST("/api/v1/inventory/reserve",InventoryHandler.ReserveInventory)
 
 	router.Run(":8080")
 }

@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/database"
+	catalogclient "github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/clients/catalog"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/handler"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/middleware"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/repository"
+	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/server"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/service"
 )
 
@@ -24,23 +28,44 @@ func main(){
 
 	defer DB.Close()
 
+	// GRPC Client To Get Products Information From catalog
+	catalogAddr := os.Getenv("CATALOG_GRPC_ADDR")
+	if catalogAddr == "" {
+		catalogAddr = "catalog:50051"
+	}
+
+	catalogClient, err := catalogclient.InitCatalogClient(catalogAddr)
+	if err != nil {
+		log.Fatalf("failed to initialize catalog client: %v", err)
+	}
+	defer catalogClient.Close()
+	
+
+	
 	engine := gin.Default()
-
-
+	
+	
 	repo := repository.InitCartRepo(DB)
+	
+	service := service.InitCartSevice(repo,*catalogClient)
+	
+	cartHandler := handler.InitCartHandler(service)
 
-	service := service.InitCartSevice(repo)
+	// GRPC Server to Serve Cart To Order Service
 
-	handler := handler.InitCartHandler(service)
+	cartGrpcHandler := handler.InitCartGrpcHandler(service)
+	go func () {
+		if err := server.StartGrpcServer(":50052",cartGrpcHandler,); err != nil {
+			log.Fatalf("grpc server failed %v",err)
+		}
+	}()
 
 	protected := engine.Group("/api/v1/cart")
 	protected.Use(middleware.AuthMiddleware)
 
-	protected.GET("",handler.GetCart)
-	protected.GET("/checkout",handler.CheckOut)
-	protected.POST("/product", handler.AddToCart)
-	protected.PATCH("/product/update",handler.UpdateCart)
-	protected.DELETE("/product/:id",handler.DeleteItem)
-	protected.DELETE("/delete",handler.ClearCart)
+	protected.GET("",cartHandler.CheckOut)
+	protected.POST("/product", cartHandler.AddToCart)
+	protected.PATCH("/product/update",cartHandler.UpdateCart)
+	protected.DELETE("/product/:id",cartHandler.DeleteItem)
 	engine.Run(":8082")
 }

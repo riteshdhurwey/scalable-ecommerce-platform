@@ -1,15 +1,17 @@
 package handler
 
 import (
-	"net/http"
+	"context"
+	"log"
 
-	"github.com/gin-gonic/gin"
+	pb "github.com/riteshdhurwey/scalable-ecommerce-platform/proto/catalog"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/service"
 )
 
 type InventoryHandler struct {
 	service *service.InventoryService
+	pb.UnimplementedCatalogServiceServer
 }
 
 func InitInventoryHandler(service *service.InventoryService) *InventoryHandler{
@@ -17,24 +19,32 @@ func InitInventoryHandler(service *service.InventoryService) *InventoryHandler{
 }
 
 
-func (h *InventoryHandler) ReserveInventory(ctx *gin.Context){
+func (h *CatalogHandler) ReserveInventory(ctx context.Context,req *pb.ReserveInventoryRequest)(*pb.ReserveInventoryResponse,error){
 
 	var reserveReq models.ReservationRequest
 
-	err := ctx.ShouldBindJSON(&reserveReq)
+	reserveReq.OrderID = req.OrderId
 
-	if err != nil{
-		ctx.JSON(http.StatusBadRequest,gin.H{"error":err.Error()})
-		return
+	var items []models.ReservationItem 
+
+	for _,item := range req.ReservationItems {
+
+		var request models.ReservationItem
+
+		request.ProductID = item.ProductId
+		request.Quantity = int(item.Quantity)
+
+		items = append(items, request)
 	}
 
-	err = h.service.ReserveInventory(ctx,reserveReq)
+    log.Printf("Received inventory reservation request: order_id=%d", req.OrderId)
+	reserveReq.Items = items
 
-	if err != nil{
-		ctx.JSON(http.StatusInternalServerError,gin.H{"error":err.Error()})
+	err := h.inventoryService.ReserveInventory(ctx,reserveReq)
 
-		return
+	if err != nil {
+		return &pb.ReserveInventoryResponse{Done: false},err
 	}
 
-	ctx.JSON(http.StatusOK,gin.H{"response":"ok"})
+	return &pb.ReserveInventoryResponse{Done: true},nil
 }

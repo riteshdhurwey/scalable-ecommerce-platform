@@ -1,75 +1,241 @@
 services:
 
-  # ---------------- USER SERVICE ----------------
+  #===================== MIGRATIONS ===================
+
+  user-migrate:
+    image: migrate/migrate:v4.18.3
+    container_name: user-migrate
+    volumes:
+      - ./user/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${USER_DB_USER:-postgres}:${USER_DB_PASSWORD}@user-db:5432/user_db?sslmode=disable"
+      - "up"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    restart: "no"
+
+  catalog-migrate:
+    image: migrate/migrate:v4.18.3
+    container_name: catalog-migrate
+    volumes:
+      - ./catalog/migrations:/migrations:ro
+    command: 
+      - "-path=/migrations"
+      - "-database=postgres://${CATALOG_DB_USER:-postgres}:${CATALOG_DB_PASSWORD}@catalog-db:5432/catalog_db?sslmode=disable"
+      - "up"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    restart: "no"
+
+  
+  cart-migrate:
+    image: migrate/migrate:v4.18.3
+    container_name: cart-migrate
+    volumes:
+      - ./cart/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${CART_DB_USER}:${CART_DB_PASSWORD}@cart-db:5432/cart_db?sslmode=disable"
+      - "-verbose"
+      - "up"
+    depends_on:
+      cart-db:
+        condition: service_healthy
+    restart: "no"
+
+  order-migrate:
+    image: migrate/migrate:v4.18.3
+    container_name: order-migrate
+    volumes:
+      - ./order/migrations:/migrations:ro
+    command: 
+      - "-path=/migrations"
+      - "-database=postgres://${ORDER_DB_USER:-postgres}:${ORDER_DB_PASSWORD}@order-db:5432/order_db?sslmode=disable"
+      - "up"
+    depends_on:
+      order-db:
+        condition: service_healthy
+    restart: "no"
+  # ==================== DATABASES ====================
+
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_USER: ${USER_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
+      POSTGRES_DB: user_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - user_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER:-postgres} -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  catalog-db:
+    image: postgres:16-alpine
+    container_name: catalog-db
+    environment:
+      POSTGRES_USER: ${CATALOG_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
+      POSTGRES_DB: catalog_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CATALOG_DB_USER:-postgres} -d catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cart-db:
+    image: postgres:16-alpine
+    container_name: cart-db
+    environment:
+      POSTGRES_USER: ${CART_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${CART_DB_PASSWORD}
+      POSTGRES_DB: cart_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - cart_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CART_DB_USER:-postgres} -d cart_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  order-db:
+    image: postgres:16-alpine
+    container_name: order-db
+    environment:
+      POSTGRES_USER: ${ORDER_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
+      POSTGRES_DB: order_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER:-postgres} -d order_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==================== USER SERVICE ====================
+
   user:
     build: ./user
     container_name: user-service
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: host.docker.internal
+      DB_USER: ${USER_DB_USER:-postgres}
+      DB_PASSWORD: ${USER_DB_PASSWORD}
+      DB_HOST: user-db
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME}
+      DB_NAME: user_db
       JWT_SECRET: ${SECRET_KEY}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      user-db:
+        condition: service_healthy
     ports:
       - "8081:8081"
 
-  # ---------------- CATALOG SERVICE ----------------
+  # ==================== CATALOG SERVICE ====================
+
   catalog:
-    build: ./catalog
+    build:
+      context: .
+      dockerfile: catalog/Dockerfile
     container_name: catalog-service
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: host.docker.internal
+      DB_USER: ${CATALOG_DB_USER:-postgres}
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+      DB_HOST: catalog-db
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      DB_NAME: catalog_db
+    depends_on:
+      catalog-db:
+        condition: service_healthy
     ports:
       - "8080:8080"
 
-  # ---------------- CART SERVICE ----------------
+  # ==================== CART SERVICE ====================
+
   cart:
-    build: ./cart
+    build:
+      context: .
+      dockerfile: cart/Dockerfile
     container_name: cart-service
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: host.docker.internal
+      DB_USER: ${CART_DB_USER:-postgres}
+      DB_PASSWORD: ${CART_DB_PASSWORD}
+      DB_HOST: cart-db
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME}
+      DB_NAME: cart_db
       JWT_SECRET: ${SECRET_KEY}
       CATALOG_SERVICE_URL: http://catalog:8080
+      CATALOG_GRPC_ADDR: catalog:50051
     depends_on:
+      cart-db:
+        condition: service_healthy
       catalog:
         condition: service_started
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "8082:8082"
 
-#--------------Order Service-----------------------
-  
+  # ==================== ORDER SERVICE ====================
+
   order:
-    build: ./order
+    build:
+      context: .
+      dockerfile: order/Dockerfile
     container_name: order-service
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: host.docker.internal
+      DB_USER: ${ORDER_DB_USER:-postgres}
+      DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      DB_HOST: order-db
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME}
+      DB_NAME: order_db
       JWT_SECRET: ${SECRET_KEY}
       CART_SERVICE_URL: http://cart:8082
       CATALOG_SERVICE_URL: http://catalog:8080
+      CATALOG_GRPC_ADDR: catalog:50051
+      CART_GRPC_ADDR: cart:50052
+
     depends_on:
+      order-db:
+        condition: service_healthy
       cart:
         condition: service_started
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      catalog:
+        condition: service_started
     ports:
       - "8083:8083"
-      
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    restart : unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  user_data:
+  catalog_data:
+  cart_data:
+  order_data:
+  rabbitmq_data:

@@ -71,47 +71,6 @@ func (h *CartHandler)AddToCart(ctx *gin.Context){
 }
 
 
-func (h *CartHandler) GetCart(ctx *gin.Context){
-
-	value,exists := ctx.Get("userID")
-
-	if !exists {
-
-		ctx.JSON(http.StatusUnauthorized,gin.H{"error":"userID missing"})
-		return
-	}
-
-	userID,ok := value.(int64)
-
-	if !ok || userID <= 0 {
-			ctx.JSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid userID",
-			})
-			return
-	}
-
-	products,err := h.service.GetCart(ctx,userID)
-
-
-	if err != nil {
-
-		if errors.Is(err,service.ErrCartIDNotFound) {
-			ctx.JSON(http.StatusOK,gin.H{"response":"cart id not found"})
-			return
-		}
-		
-		if errors.Is(err,service.ErrEmptyCart) {
-			ctx.JSON(http.StatusOK,gin.H{"response":"cart is empty"})
-			return
-		}
-
-		ctx.JSON(http.StatusInternalServerError,gin.H{"error":err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK,products)
-}
-
 func (h *CartHandler) UpdateCart(ctx *gin.Context){
 	value,exists := ctx.Get("userID")
 
@@ -254,31 +213,13 @@ func (h *CartHandler) CheckOut(ctx *gin.Context){
 		return
 	}
 
-	if outOfStockProducts != nil {
-		ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products,"out of stock":outOfStockProducts})
+	if totalAmount <= 0 && outOfStockProducts == nil {
+		ctx.JSON(http.StatusOK,gin.H{"response":"cart is empty"})
 		return
 	}
 
 
-	ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products})
+	ctx.JSON(http.StatusOK,gin.H{"totalAmount":totalAmount,"available":products,"out of stock products":outOfStockProducts})
 }
 
-func (h *CartHandler) ClearCart(c *gin.Context) {
-    value, exists := c.Get("userID")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-        return
-    }
 
-    userID := value.(int64)
-
-    err := h.service.ClearCart(c.Request.Context(), userID)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "message": "cart cleared successfully",
-    })
-}

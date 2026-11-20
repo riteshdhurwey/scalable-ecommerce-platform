@@ -1,85 +1,57 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"os"
+	"log"
+
 	"time"
+
+	cartClient "github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/client/cart"
+	inventoryClient "github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/client/inventory"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/repository"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
 
 	ErrOutOfStock = errors.New("some products are out of stock")
 	ErrEmptyCart  = errors.New("Cart is empty")
+	ErrAuthCredentials = errors.New("authorization credentials are missing")
 )
 
 
 type OrderService struct {
 	repo *repository.OrderRepo
+	inventoryClient *inventoryClient.Inventory
+	cartClient *cartClient.Cart
 }
 
-func InitOrderService(repo *repository.OrderRepo) *OrderService {
-	return &OrderService{repo: repo}
+func InitOrderService(repo *repository.OrderRepo,client *inventoryClient.Inventory,cartclient *cartClient.Cart) *OrderService {
+	return &OrderService{repo: repo,inventoryClient: client,cartClient: cartclient}
 }
 
-func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*[]models.OutOfStockProducts,*[]models.Product,float32,error){
+func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*[]models.OutOfStockProducts,*[]models.OrderItems,float32,error){
 
-	cartURL := os.Getenv("CART_SERVICE_URL")
+	if userID <= 0 || token == ""{
+		return nil,nil,0,ErrAuthCredentials
+	}
 
-	url := cartURL + "/api/v1/cart/checkout"
-
-	request, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		url,
-		nil,
+	md := metadata.Pairs(
+		  "authorization","Bearer" + token,	
 	)
 
-	if err != nil {
-		return nil, nil, 0, err
-	}
+	ctx = metadata.NewOutgoingContext(ctx,md)
 
-	request.AddCookie(&http.Cookie{
-		Name:  "authorization",
-		Value: token,
-	})
+	response,err := s.cartClient.GetCartItems(ctx,userID)
 
-	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil,nil,0,err
 	}
 
-	defer resp.Body.Close()
-
-
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusConflict{
-			return nil,nil,0,ErrEmptyCart
-		}
-		return nil, nil, 0, fmt.Errorf(
-			"cart service returned status %d:",
-			resp.StatusCode,
-		)
-	}
-	var  response models.ProductPayload
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil,nil,0,err
-
-	}
-
-
-	if response.OutOfStockProducts != nil {
-		return &response.OutOfStockProducts,nil,0,ErrOutOfStock
-	}
-
-	if response.AvailableProducts == nil {
+	if response.Products == nil {
 		return nil,nil,0,ErrEmptyCart
 	}
 
@@ -100,68 +72,40 @@ func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*
 
 	var items []models.ReservationItem
 	
-	AvailableProducts := response.AvailableProducts
+	AvailableProducts := response.Products
 
 	for _,p := range AvailableProducts {
 		var item models.ReservationItem
 
-		item.ProductID = p.ProductID
-		item.Quantity = p.OrderQuantity
+		item.ProductID = p.ID
+		item.Quantity = int(p.Quantity)
 
 		items = append(items, item)
 	}
 
 	orderReq.Items = items
 
-	jsonData,err := json.Marshal(&orderReq)
+	orderReserved,err := s.inventoryClient.ReverseInventory(ctx,orderReq)
 
-	if err != nil{
-		return nil,nil,0,err
-	}
-
-	 catalogBaseURL := os.Getenv("CATALOG_SERVICE_URL")
-
-	catalogURL := catalogBaseURL + "/api/v1/inventory/reserve"
-
-	reserveReq, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		catalogURL,
-		bytes.NewBuffer(jsonData),
-	)
 	if err != nil {
-		return nil, nil, 0, err
-	}
+    return nil, nil, 0, fmt.Errorf("failed to reserve inventory: %w", err)
+    }
 
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
+	if !orderReserved.Done{
+		return nil,nil,0,fmt.Errorf("failed to reserve order")
+	} 
 
-	reserveResp, err := client.Do(reserveReq)
-	if err != nil {
-		return nil, nil, 0, fmt.Errorf(
-			"inventory reservation request failed: %w", err,
-		)
-	}
-	defer reserveResp.Body.Close()
-
-	if reserveResp.StatusCode != http.StatusOK {
-    return nil, nil, 0, fmt.Errorf(
-        "inventory reservation failed with status %d",
-        reserveResp.StatusCode,
-    )
-}
 	var products[]models.OrderItems
 
 	for _,p := range AvailableProducts {
 
 		var product models.OrderItems
 
-		product.ProductID = p.ProductID
+		product.ProductID = p.ID
 		product.ProductName = p.Name
-		product.Quantity = p.OrderQuantity
+		product.Quantity = int(p.Quantity)
 		product.UnitPrice = p.Price
-		product.SubTotal = p.Price * float64(p.OrderQuantity)
+		product.SubTotal = p.Price * float64(p.Quantity)
 		products = append(products, product)
 
 	}
@@ -172,37 +116,16 @@ func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*
 		return nil,nil,0,err
 	}
 
-	clearCartURL := cartURL + "/api/v1/cart/delete"
+	log.Print("order placed")
 
-	clearReq, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodDelete,
-		clearCartURL,
-		nil,
-	)
-	if err != nil {
-		return nil, nil, 0, err
-	}
+	cartCleared,err := s.cartClient.ClearCart(ctx,userID)
 
-	clearReq.AddCookie(&http.Cookie{
-		Name:  "authorization",
-		Value: token,
-	})
-
-	clearResp, err := http.DefaultClient.Do(clearReq)
-	if err != nil {
-		return nil,nil,0,fmt.Errorf("cart not cleared")
-	}
-
-	defer clearResp.Body.Close()
-
-	if clearResp.StatusCode != http.StatusOK {
-			return nil,nil,0,fmt.Errorf("cart returned status code %d",clearResp.StatusCode)
+	if err != nil || !cartCleared.Done {
+		return nil,nil,0,fmt.Errorf("cart not cleared %w",err)
 	}
 
 
-	return nil,&AvailableProducts,float32(order.TotalAmount),nil
+	return nil,&products,float32(order.TotalAmount),nil
 
-	
 	
 }

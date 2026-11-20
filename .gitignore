@@ -26,6 +26,7 @@ go.work.sum
 *.log
 logs/
 tests/
+test/
 seed/
 # Coverage
 coverage.out

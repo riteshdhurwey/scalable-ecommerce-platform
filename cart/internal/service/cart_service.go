@@ -1,19 +1,18 @@
 package service
 
 import (
-	"bytes"
+
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"os"
-	"strconv"
-	"time"
+	"log"
 
+	"github.com/jackc/pgx/v5"
+	catalogclient "github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/clients/catalog"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/cart/internal/repository"
 )
+
 
 var (
 
@@ -25,10 +24,11 @@ var (
 
 type CartSevice struct {
 	repo *repository.CartRepo
+	grpcClient catalogclient.Client
 }
 
-func InitCartSevice(repo *repository.CartRepo) *CartSevice {
-	return &CartSevice{repo: repo}
+func InitCartSevice(repo *repository.CartRepo,grpcClient catalogclient.Client) *CartSevice {
+	return &CartSevice{repo: repo,grpcClient: grpcClient}
 }
 
 func (s *CartSevice) AddToCart(ctx context.Context,userID int64,req models.Cart)(*models.Product,error){
@@ -37,56 +37,39 @@ func (s *CartSevice) AddToCart(ctx context.Context,userID int64,req models.Cart)
 		return nil, fmt.Errorf("invalid product")
 	}
 
-	productID  := strconv.Itoa(int(req.ProductID))
-	catalogURL := os.Getenv("CATALOG_SERVICE_URL")
-    url := catalogURL + "/api/v1/product/" + productID
+	var productIDs []int64
 
-	request,err := http.NewRequestWithContext(ctx,http.MethodGet,url,nil)
+	productIDs = append(productIDs, req.ProductID)
 
-	if err != nil {
-		return nil,err
-	}
-	var httpClient = &http.Client{
-   		 Timeout: 3 * time.Second,
-	}
-
-
-	resp,err := httpClient.Do(request)
+	product,err := s.grpcClient.GetProduct(ctx,req.ProductID)
 
 	if err != nil {
+		log.Printf("Catalog gRPC error: %v", err)
 		return nil,err
 	}
+	
+	cartID, err := s.repo.IsCartExists(ctx, userID)
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-            "catalog returned status %d",
-            resp.StatusCode,
-        )
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("checking cart: %w", err)
 	}
 
-	var product models.Product
-
-	if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
-		return nil,err
-	}
-
-	
-	cartID,err := s.repo.IsCartExists(ctx,userID)
-	
 	currentQuantity := 0
-	
+
 	if cartID != nil {
-		
-		currentQuantity,_ = s.repo.GetCartProductByID(ctx,*cartID,req.ProductID)
-		
+		currentQuantity, err = s.repo.GetCartProductByID(
+			ctx, *cartID, req.ProductID,
+		)
+
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("checking cart item: %w", err)
+		}
 	}
 
 	newQuantity := req.Quantity + currentQuantity
 
-	if product.StockQuantity < newQuantity {
-		return nil,fmt.Errorf("available stock : %d",product.StockQuantity)
+	if int(product.Quantity) < newQuantity {
+		return nil,fmt.Errorf("available stock : %d and Ordered Quantity is %d",product.Quantity,newQuantity)
 	}
 
 	if cartID == nil {
@@ -100,119 +83,18 @@ func (s *CartSevice) AddToCart(ctx context.Context,userID int64,req models.Cart)
 		cartID = &newCartID
 	}
 
-
-	
-
 	err = s.repo.AddToCart(ctx,*cartID,req)
 
 	if err != nil {
 		return nil,err
 	}
 
-	productResponse := models.Product{Name: product.Name,ProductID: product.ProductID,Price: product.Price,StockQuantity: req.Quantity}
+	productResponse := models.Product{Name: product.Name,ProductID: req.ProductID,Price: product.Price,StockQuantity: req.Quantity}
 
 	
 	return &productResponse, nil
 
 }
-
-
-func (s *CartSevice) GetCart(ctx context.Context,userID int64)(*[]models.Product,error){
-
-	cart_id,err := s.repo.IsCartExists(ctx,userID)
-
-	if err != nil {
-		return nil,err
-	}
-
-	if cart_id == nil {
-		return nil,ErrCartIDNotFound
-	}
-
-	cartItems,err := s.repo.GetCart(ctx,*cart_id)
-
-	if err != nil {
-		return nil,err
-	}
-
-	if cartItems == nil {
-		return nil,ErrEmptyCart
-	}
-	
-	var productIDs []int64
-	productIDMap := make(map[int64]int)
-	
-	for _,product :=  range *cartItems {
-		
-		productIDs = append(productIDs, product.ProductID)
-		productIDMap[product.ProductID] = product.Quantity
-	}
-	
-	body := map[string][]int64{
-		"product_ids":productIDs,
-	}
-	
-	
-	jsonData , err := json.Marshal(&body)
-	
-	if err != nil {
-		return nil,err
-	}
-	
-    catalogURL := os.Getenv("CATALOG_SERVICE_URL")
-	
-	url := catalogURL + "/api/v1/products/batch"
-	
-	request,err := http.NewRequest(http.MethodPost,url,bytes.NewBuffer(jsonData))
-	
-	if err != nil {
-		return nil,err
-	}
-	
-	var httpClient = &http.Client{
-		Timeout: 5 * time.Second,
-	}
-	
-	resp,err := httpClient.Do(request)
-
-	if err != nil {
-		return nil,err
-	}
-	
-	defer resp.Body.Close()
-	
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"catalog returned status %d",
-			resp.StatusCode,
-		)
-	}
-	
-	var response []models.BatchRequest
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil,err
-	}
-	var products []models.Product
-	
-	for _,value := range response {
-
-		var product models.Product
-
-		product.ProductID = value.ID
-		product.Name  = value.Name
-		product.Price = value.Price
-		product.StockQuantity = productIDMap[value.ID]
-
-		products = append(products, product)
-	}
-
-
-	return &products,nil
-
-
-}
-
 
 func (s *CartSevice) UpdateCart(ctx context.Context,userID int64,req models.Cart)(bool,error){
 
@@ -236,45 +118,17 @@ func (s *CartSevice) UpdateCart(ctx context.Context,userID int64,req models.Cart
 		return false,err
 	}
 
-	productID  := strconv.Itoa(int(req.ProductID))
-	catalogURL := os.Getenv("CATALOG_SERVICE_URL")
-    url := catalogURL + "/api/v1/product/" + productID
 
-	request,err := http.NewRequestWithContext(ctx,http.MethodGet,url,nil)
+	product,err := s.grpcClient.GetProduct(ctx,req.ProductID)
 
 	if err != nil {
-		return false,err
-	}
-	var httpClient = &http.Client{
-   		 Timeout: 3 * time.Second,
-	}
-
-
-	resp,err := httpClient.Do(request)
-
-	if err != nil {
-		return false,err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf(
-            "catalog returned status %d",
-            resp.StatusCode,
-        )
-	}
-
-	var product models.Product
-
-	if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
 		return false,err
 	}
 
 	newQuantity := previousQuantity + req.Quantity
 
-	if newQuantity > product.StockQuantity {
-		return false,fmt.Errorf("available stock : %d",product.StockQuantity)
+	if newQuantity > int(product.Quantity) {
+		return false,fmt.Errorf("available stock : %d",product.Quantity)
 
 	}
 
@@ -319,7 +173,7 @@ func(s *CartSevice) DeleteItem(ctx context.Context,userID,productID int64)(error
 }
 
 
-func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]models.Product,*[]models.OutOfStockProducts,error){
+func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]models.Product,[]models.OutOfStockProducts,error){
 
 	cart_id,err := s.repo.IsCartExists(ctx,userID)
 
@@ -336,6 +190,8 @@ func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]model
 	if cartItems == nil{
 		return 0,nil, nil,ErrEmptyCart
 	}
+
+	log.Println("got cart items")
 	if err != nil {
 		return 0,nil,nil,err
 	}
@@ -350,64 +206,26 @@ func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]model
 		productIdOrderedStock[product.ProductID] = product.Quantity
 	}
 	
-	body := map[string][]int64{
-		"product_ids":productIDs,
-	}
-	
-	
-	jsonData , err := json.Marshal(&body)
-	
-	if err != nil {
-		return 0,nil,nil,err
-	}
-	
-    catalogURL := os.Getenv("CATALOG_SERVICE_URL")
-	
-	url := catalogURL + "/api/v1/products/batch"
-	
-	request,err := http.NewRequest(http.MethodPost,url,bytes.NewBuffer(jsonData))
-	
-	if err != nil {
-		return 0,nil,nil,err
-	}
-	
-	var httpClient = &http.Client{
-		Timeout: 5 * time.Second,
-	}
-	
-	resp,err := httpClient.Do(request)
+	response ,err := s.grpcClient.GetProductByIDs(ctx,productIDs)
 
 	if err != nil {
-		return 0,nil, nil,err
-	}
-	
-	defer resp.Body.Close()
-	
-	if resp.StatusCode != http.StatusOK {
-		return 0,nil, nil,fmt.Errorf(
-			"catalog returned status %d",
-			resp.StatusCode,
-		)
-	}
-	
-	var response []models.BatchRequest
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return 0,nil,nil,err
 	}
+
 	var products []models.Product
 	var outOFStockProducts []models.OutOfStockProducts
 	var totalAmount float32
 
-	for _,p := range response {
+	for _,p := range response.Products {
 		
-		if productIdOrderedStock[p.ID] > p.AvailableStock {
+
+		if productIdOrderedStock[p.Id] > int(p.Quantity) {
 			var product models.OutOfStockProducts
 			
-			product.ProductID = p.ID
-			product.OrderedStock = productIdOrderedStock[p.ID]
+			product.ProductID = p.Id
+			product.OrderedStock = productIdOrderedStock[p.Id]
 			product.Name = p.Name
-			product.AvailableStock = p.AvailableStock
+			product.AvailableStock = int(p.Quantity)
 			
 			outOFStockProducts = append(outOFStockProducts, product)
 			continue
@@ -415,10 +233,11 @@ func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]model
 
 		var product models.Product
 
-			product.ProductID = p.ID
+
+			product.ProductID = p.Id
 			product.Name = p.Name
 			product.Price = p.Price
-			product.StockQuantity = productIdOrderedStock[p.ID]
+			product.StockQuantity = productIdOrderedStock[p.Id]
 
 			totalAmount += float32(p.Price) * float32(product.StockQuantity)
 
@@ -426,11 +245,7 @@ func (s *CartSevice) CheckOut(ctx context.Context,userID int64)(float32,*[]model
 
 	}
 
-	if products == nil {
-		return 0,nil,nil,ErrEmptyCart
-	}
-
-	return totalAmount,&products,&outOFStockProducts,nil
+	return totalAmount,&products,outOFStockProducts,nil
 
 
 }
