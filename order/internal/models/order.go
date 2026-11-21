@@ -67,3 +67,13 @@ type ProductPayload struct {
 	AvailableProducts  []Product `json:"available"`
 	OutOfStockProducts []OutOfStockProducts `json:"out of stock"` 
 }
+
+
+type OrderStatusResponse struct {
+	OrderID int64 `json:"id"`
+	Status string `json:"status"`
+	TotalAmount float64 `json:"total_amount"`
+	PaymentStatus string `json:"payment_status"`
+	PaymentExpAt time.Time `json:"payment_expires_at"`
+	Updated_At time.Time `json:"updated_at"`
+}

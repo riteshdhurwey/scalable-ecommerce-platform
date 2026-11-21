@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
+
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/database"
@@ -10,6 +13,9 @@ import (
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/repository"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/server"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/service"
+	"github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/worker"
+
+	orderclient "github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog/internal/clients/order"
 )
 
 
@@ -25,10 +31,22 @@ func main(){
 
 	fmt.Println("Connected To Database")
 
+	//grpc client order 
 
+	orderAddr := os.Getenv("ORDER_GRPC_ADDR")
 
+	if orderAddr == ""{
+		orderAddr = "order:50053"
+	}
 
-	router := gin.Default()
+	orderClient,err := orderclient.InitOrderClient(orderAddr)
+
+	log.Printf("Connecting to inventory service: %s", orderAddr)
+	if err != nil {
+	   log.Fatalf("failed to init order client %v",err)
+	}
+
+	defer orderClient.Close()
 
 	repo := repository.NewPostgreRepo(DB)
 
@@ -43,6 +61,7 @@ func main(){
 
 	catalogHandler := handler.InitCatalogGRPCHandler(productService,InventoryService)
 
+	// GRPC SERVER
 	go func() {
 		if err := server.StartGRPCServer(
 			":50051",
@@ -51,6 +70,14 @@ func main(){
 			log.Fatalf("gRPC server failed: %v", err)
 		}
 	}()
+
+	//worker releases expired reservations
+	ctx,cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go worker.StartReservationWorker(ctx,DB,orderClient)
+
+	// http server
+	router := gin.Default()
 
 	router.POST("/api/v1/category",categoryHandler.CreateCategory)
 	router.GET("/api/v1/categories",categoryHandler.GetCategories)

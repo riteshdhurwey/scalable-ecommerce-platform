@@ -160,6 +160,7 @@ services:
       DB_HOST: catalog-db
       DB_PORT: 5432
       DB_NAME: catalog_db
+      ORDER_GRPC_ADDR: order:50053
     depends_on:
       catalog-db:
         condition: service_healthy

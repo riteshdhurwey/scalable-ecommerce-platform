@@ -48,7 +48,26 @@ func(repo *OrderRepo) CreateOrderItems(ctx context.Context,OrderID int64,product
 }
 
 
+func (repo *OrderRepo) GetOrderStatus(ctx context.Context,orderID int64)(models.OrderStatusResponse,error){
+	query := `SELECT id,total_amount,status,payment_status,payment_expires_at,updated_at FROM orders WHERE id = $1`
 
+	var orderStatus models.OrderStatusResponse
+
+	err := repo.DB.QueryRow(ctx,query,orderID).Scan(
+		&orderStatus.OrderID,
+		&orderStatus.TotalAmount,
+		&orderStatus.Status,
+		&orderStatus.PaymentStatus,
+		&orderStatus.PaymentExpAt,
+		&orderStatus.Updated_At,
+	)
+
+	if err != nil {
+		return models.OrderStatusResponse{},err
+	}
+
+	return orderStatus,nil
+}
 
 
 

@@ -20,6 +20,7 @@ var (
 	ErrOutOfStock = errors.New("some products are out of stock")
 	ErrEmptyCart  = errors.New("Cart is empty")
 	ErrAuthCredentials = errors.New("authorization credentials are missing")
+	ErrInvalidOrderId  = errors.New("invalid order id")
 )
 
 
@@ -128,4 +129,36 @@ func (s *OrderService) CheckOut(ctx context.Context,userID int64,token string)(*
 	return nil,&products,float32(order.TotalAmount),nil
 
 	
+}
+
+
+func (s *OrderService)GetOrderStatus(ctx context.Context,orderID int64)(models.OrderStatusResponse,error){
+
+	if orderID <= 0 {
+		return models.OrderStatusResponse{},ErrInvalidOrderId
+	}
+
+	return s.repo.GetOrderStatus(ctx,orderID)
+}
+
+
+func (s *OrderService) IsOrderExpired(ctx context.Context,orderID int64)(bool,error){
+
+	if orderID <= 0 {
+		return false,ErrInvalidOrderId
+	}
+
+	orderStatus,err := s.repo.GetOrderStatus(ctx,orderID)
+
+	if err != nil {
+		return false,err
+	}
+
+
+
+	if (orderStatus.PaymentExpAt.IsZero() && !orderStatus.PaymentExpAt.Add(10 * time.Minute).After(time.Now())) && orderStatus.Status == "PENDING" {
+		return true,nil
+	}
+
+	return false,nil
 }

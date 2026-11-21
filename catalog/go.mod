@@ -2,7 +2,10 @@ module github.com/riteshdhurwey/scalable-ecommerce-platform/services/catalog
 
 go 1.26.5
 
-require github.com/jackc/pgx/v5 v5.11.0
+require (
+	github.com/jackc/pgx/v5 v5.11.0
+	google.golang.org/grpc v1.85.0
+)
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
@@ -33,7 +36,6 @@ require (
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
-	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 
