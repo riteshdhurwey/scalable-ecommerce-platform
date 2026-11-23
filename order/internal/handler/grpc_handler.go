@@ -2,10 +2,13 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/service"
 	pb "github.com/riteshdhurwey/scalable-ecommerce-platform/proto/order"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type OrderGrpcHandler struct {
@@ -18,28 +21,22 @@ func InitOrderGrpcHandler(orderservice *service.OrderService) *OrderGrpcHandler{
 	return &OrderGrpcHandler{orderService: orderservice}
 }
 
-func (h *OrderGrpcHandler) GetOrderStatus(ctx context.Context,req *pb.GetOrderStatusRequest)(*pb.GetOrderStatusResponse,error){
+func (h *OrderGrpcHandler) UpdateExpiredOrderStatus(ctx context.Context,req *pb.GetOrderStatusRequest)(*pb.GetOrderStatusResponse,error){
 
 	log.Println("worker request recieved")
 
-	OrderExpired := make([]*pb.OrderState,0,len(req.OrderIDs))
+	response,err := h.orderService.UpdateExpiredOrderStatus(ctx,req)
 
-	for _,order := range req.OrderIDs {
-
-		expired,err := h.orderService.IsOrderExpired(ctx,order.OrderID)
-
-		if err != nil {
-			return nil,err
+	if err != nil {
+		if errors.Is(err,service.ErrInvalidOrderId) {
+			return nil,status.Error(codes.InvalidArgument,err.Error())
 		}
 
+		return nil,status.Error(codes.Internal,err.Error())
 
-		response := pb.OrderState{OrderID: order.OrderID,OrderExpired : expired}
-
-		OrderExpired = append(OrderExpired, &response)
-		
 	}
 
-	response := &pb.GetOrderStatusResponse{OrderStates: OrderExpired}
 	log.Println("worker request done")
+
 	return response,nil
 }

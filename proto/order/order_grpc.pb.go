@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	OrderService_GetOrderStatus_FullMethodName = "/order.OrderService/GetOrderStatus"
+	OrderService_UpdateExpiredOrderStatus_FullMethodName = "/order.OrderService/UpdateExpiredOrderStatus"
 )
 
 // OrderServiceClient is the client API for OrderService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrderServiceClient interface {
-	GetOrderStatus(ctx context.Context, in *GetOrderStatusRequest, opts ...grpc.CallOption) (*GetOrderStatusResponse, error)
+	UpdateExpiredOrderStatus(ctx context.Context, in *GetOrderStatusRequest, opts ...grpc.CallOption) (*GetOrderStatusResponse, error)
 }
 
 type orderServiceClient struct {
@@ -37,10 +37,10 @@ func NewOrderServiceClient(cc grpc.ClientConnInterface) OrderServiceClient {
 	return &orderServiceClient{cc}
 }
 
-func (c *orderServiceClient) GetOrderStatus(ctx context.Context, in *GetOrderStatusRequest, opts ...grpc.CallOption) (*GetOrderStatusResponse, error) {
+func (c *orderServiceClient) UpdateExpiredOrderStatus(ctx context.Context, in *GetOrderStatusRequest, opts ...grpc.CallOption) (*GetOrderStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetOrderStatusResponse)
-	err := c.cc.Invoke(ctx, OrderService_GetOrderStatus_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, OrderService_UpdateExpiredOrderStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *orderServiceClient) GetOrderStatus(ctx context.Context, in *GetOrderSta
 // All implementations must embed UnimplementedOrderServiceServer
 // for forward compatibility.
 type OrderServiceServer interface {
-	GetOrderStatus(context.Context, *GetOrderStatusRequest) (*GetOrderStatusResponse, error)
+	UpdateExpiredOrderStatus(context.Context, *GetOrderStatusRequest) (*GetOrderStatusResponse, error)
 	mustEmbedUnimplementedOrderServiceServer()
 }
 
@@ -62,8 +62,8 @@ type OrderServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedOrderServiceServer struct{}
 
-func (UnimplementedOrderServiceServer) GetOrderStatus(context.Context, *GetOrderStatusRequest) (*GetOrderStatusResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetOrderStatus not implemented")
+func (UnimplementedOrderServiceServer) UpdateExpiredOrderStatus(context.Context, *GetOrderStatusRequest) (*GetOrderStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateExpiredOrderStatus not implemented")
 }
 func (UnimplementedOrderServiceServer) mustEmbedUnimplementedOrderServiceServer() {}
 func (UnimplementedOrderServiceServer) testEmbeddedByValue()                      {}
@@ -86,20 +86,20 @@ func RegisterOrderServiceServer(s grpc.ServiceRegistrar, srv OrderServiceServer)
 	s.RegisterService(&OrderService_ServiceDesc, srv)
 }
 
-func _OrderService_GetOrderStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _OrderService_UpdateExpiredOrderStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetOrderStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OrderServiceServer).GetOrderStatus(ctx, in)
+		return srv.(OrderServiceServer).UpdateExpiredOrderStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: OrderService_GetOrderStatus_FullMethodName,
+		FullMethod: OrderService_UpdateExpiredOrderStatus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OrderServiceServer).GetOrderStatus(ctx, req.(*GetOrderStatusRequest))
+		return srv.(OrderServiceServer).UpdateExpiredOrderStatus(ctx, req.(*GetOrderStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -112,8 +112,8 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*OrderServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetOrderStatus",
-			Handler:    _OrderService_GetOrderStatus_Handler,
+			MethodName: "UpdateExpiredOrderStatus",
+			Handler:    _OrderService_UpdateExpiredOrderStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

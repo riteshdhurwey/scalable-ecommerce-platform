@@ -32,7 +32,6 @@ func main(){
 	fmt.Println("Connected To Database")
 
 	//grpc client order 
-
 	orderAddr := os.Getenv("ORDER_GRPC_ADDR")
 
 	if orderAddr == ""{
@@ -41,7 +40,8 @@ func main(){
 
 	orderClient,err := orderclient.InitOrderClient(orderAddr)
 
-	log.Printf("Connecting to inventory service: %s", orderAddr)
+	log.Printf("Connecting to order service: %s", orderAddr)
+
 	if err != nil {
 	   log.Fatalf("failed to init order client %v",err)
 	}
@@ -74,6 +74,7 @@ func main(){
 	//worker releases expired reservations
 	ctx,cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	go worker.StartReservationWorker(ctx,DB,orderClient)
 
 	// http server

@@ -40,11 +40,6 @@ func main(){
 	}
 	defer catalogClient.Close()
 	
-
-	
-	engine := gin.Default()
-	
-	
 	repo := repository.InitCartRepo(DB)
 	
 	service := service.InitCartSevice(repo,*catalogClient)
@@ -52,13 +47,16 @@ func main(){
 	cartHandler := handler.InitCartHandler(service)
 
 	// GRPC Server to Serve Cart To Order Service
-
 	cartGrpcHandler := handler.InitCartGrpcHandler(service)
 	go func () {
 		if err := server.StartGrpcServer(":50052",cartGrpcHandler,); err != nil {
 			log.Fatalf("grpc server failed %v",err)
 		}
 	}()
+
+	
+	engine := gin.Default()
+	
 
 	protected := engine.Group("/api/v1/cart")
 	protected.Use(middleware.AuthMiddleware)

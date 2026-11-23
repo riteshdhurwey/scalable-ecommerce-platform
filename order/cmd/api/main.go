@@ -59,12 +59,11 @@ func main(){
 	service := service.InitOrderService(repo,inventoryClient,cartClient)
 	
 	Orderhandler := handler.InitOrderHandler(service)
+	
 	// grpc server 
-
 	orderGrpcHandler := handler.InitOrderGrpcHandler(service)
 
 	go func() {
-		
 		err := server.StartGrpcServer(":50053", orderGrpcHandler)
 
 		if err != nil {
@@ -74,7 +73,6 @@ func main(){
 	
 	router := gin.Default()
 	
-
 	protected := router.Group("/api/v1/order")
 	protected.Use(middleware.AuthMiddleware)
 

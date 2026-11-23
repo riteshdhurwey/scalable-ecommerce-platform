@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"log"
 
 	"time"
 
@@ -15,17 +16,27 @@ type Order struct {
 	client orderpb.OrderServiceClient
 }
 
-func InitOrderClient(addr string)(*Order,error){
-	connection,err := grpc.NewClient(addr,grpc.WithTransportCredentials(insecure.NewCredentials()))
+func InitOrderClient(addr string) (*Order, error) {
+    target := "dns:///" + addr
 
-	if err != nil {
-		return nil,err
-	}
+    log.Printf("Initializing Order gRPC client: %q", target)
 
-	return &Order{conn: connection,client: orderpb.NewOrderServiceClient(connection)},nil
+    connection, err := grpc.NewClient(
+        target,
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+    )
+
+    if err != nil {
+        return nil, err
+    }
+
+    return &Order{
+        conn:   connection,
+        client: orderpb.NewOrderServiceClient(connection),
+    }, nil
 }
 
-func (o *Order) GetOrderStatus(ctx context.Context,orderIDs []int64)(*orderpb.GetOrderStatusResponse,error){
+func (o *Order) UpdateOrderStatus(ctx context.Context,orderIDs []int64)(*orderpb.GetOrderStatusResponse,error){
 	ctx,cancel := context.WithTimeout(ctx, 5 * time.Second)
 
 	defer cancel()
@@ -37,7 +48,7 @@ func (o *Order) GetOrderStatus(ctx context.Context,orderIDs []int64)(*orderpb.Ge
 		request = append(request, &orderpb.OrderID{OrderID: order})
 	}
 
-	return o.client.GetOrderStatus(ctx,&orderpb.GetOrderStatusRequest{OrderIDs: request})
+	return o.client.UpdateExpiredOrderStatus(ctx,&orderpb.GetOrderStatusRequest{OrderIDs: request})
 }
 
 func (o *Order) Close()(error){

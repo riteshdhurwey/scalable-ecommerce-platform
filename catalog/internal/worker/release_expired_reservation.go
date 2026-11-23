@@ -60,22 +60,35 @@ func ReleaseExpiredOrders(ctx context.Context, db *pgxpool.Pool, client *orderCl
 		}
 	}
 
-	orderStatus, err := client.GetOrderStatus(ctx, uniqueOrderIDs)
+	response, err := client.UpdateOrderStatus(ctx, uniqueOrderIDs)
+	
 	if err != nil {
 		log.Printf("error verifying expired reservations: %v", err)
 		return false
 	}
 
-	orderExpired := make(map[int64]bool, len(orderStatus.OrderStates))
-	for _, order := range orderStatus.OrderStates {
-		orderExpired[order.OrderID] = order.OrderExpired
+	if !response.StatusUpdated {
+		log.Println("order status not updated")
+		return false
 	}
+
+	if response.OrderIDs == nil {
+		return false
+	}
+
+	orderExpired := make(map[int64]bool)
+
+	for _,id := range response.OrderIDs {
+
+		orderExpired[id.OrderID] = true
+	}
+	
 
 	updateQuery := `UPDATE inventory_reservations SET status = 'RELEASED' WHERE id = $1 AND status = 'RESERVED'`
 	releaseStockQuery := `UPDATE products SET stock_quantity = stock_quantity + $1 WHERE id = $2;`
 
 	for _, item := range expiredReservations {
-		if orderExpired[item.OrderID] {
+		if !orderExpired[item.OrderID] {
 			continue
 		}
 
@@ -106,7 +119,6 @@ func ReleaseExpiredOrders(ctx context.Context, db *pgxpool.Pool, client *orderCl
 	log.Print("worker done")
 	return true
 }
-
 
 func StartReservationWorker(ctx context.Context, db *pgxpool.Pool, client *orderClient.Order) {
 	for {

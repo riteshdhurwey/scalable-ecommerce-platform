@@ -69,5 +69,51 @@ func (repo *OrderRepo) GetOrderStatus(ctx context.Context,orderID int64)(models.
 	return orderStatus,nil
 }
 
+func (repo *OrderRepo)UpdateExpiredOrderStatus(ctx context.Context,orderIDs []int64)(bool,[]int64,error){
+
+	if len(orderIDs) == 0 {
+		return false,nil,nil
+	}
+
+	query := `UPDATE orders SET status = 'FAILED',payment_status = 'EXPIRED' , updated_at = NOW() WHERE status = 'PENDING' AND payment_status = 'PENDING' AND payment_expires_at < NOW() AND id = ANY($1) RETURNING id`
+
+	tx , err := repo.DB.Begin(ctx)
+
+	if err != nil {
+		return false,nil,err
+	}
+
+	defer tx.Rollback(ctx)
+
+	result,err := tx.Query(ctx,query,orderIDs)
+
+	if err != nil {
+		return false,nil,err
+	}
+
+	var updatedIDs []int64 
+
+	for result.Next() {
+
+		var orderID int64 
+
+		err := result.Scan(&orderID)
+
+		if err != nil {
+			return false,nil,err
+		}
+
+		updatedIDs = append(updatedIDs, orderID)
+	}
+
+	err = tx.Commit(ctx)
+
+	if err != nil {
+		return false,nil,err
+	}
+
+	return true,updatedIDs,nil
+}
+
 
 

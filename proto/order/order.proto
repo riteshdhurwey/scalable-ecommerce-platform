@@ -12,16 +12,13 @@ message GetOrderStatusRequest{
     repeated OrderID OrderIDs = 1;
 }
 
-message OrderState {
-    int64 orderID = 1;
-    bool  orderExpired = 2;
-}
 
 message GetOrderStatusResponse {
-    repeated OrderState OrderStates = 1;
+    repeated OrderID OrderIDs = 1;
+    bool statusUpdated = 2;
 }
 
 service OrderService {
-    rpc GetOrderStatus(GetOrderStatusRequest)
+    rpc UpdateExpiredOrderStatus(GetOrderStatusRequest)
         returns (GetOrderStatusResponse);
 }

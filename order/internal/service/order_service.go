@@ -13,10 +13,11 @@ import (
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/models"
 	"github.com/riteshdhurwey/scalable-ecommerce-platform/order/internal/repository"
 	"google.golang.org/grpc/metadata"
+	pb "github.com/riteshdhurwey/scalable-ecommerce-platform/proto/order"
+
 )
 
 var (
-
 	ErrOutOfStock = errors.New("some products are out of stock")
 	ErrEmptyCart  = errors.New("Cart is empty")
 	ErrAuthCredentials = errors.New("authorization credentials are missing")
@@ -154,11 +155,49 @@ func (s *OrderService) IsOrderExpired(ctx context.Context,orderID int64)(bool,er
 		return false,err
 	}
 
-
-
 	if (orderStatus.PaymentExpAt.IsZero() && !orderStatus.PaymentExpAt.Add(10 * time.Minute).After(time.Now())) && orderStatus.Status == "PENDING" {
 		return true,nil
 	}
 
 	return false,nil
+}
+
+
+func (s *OrderService) UpdateExpiredOrderStatus(ctx context.Context, req *pb.GetOrderStatusRequest)(*pb.GetOrderStatusResponse,error){
+
+	if req == nil {
+		return nil,ErrInvalidOrderId
+	}
+
+	var reqOrderIDs []int64
+
+	for _,order := range req.OrderIDs {
+
+		reqOrderIDs = append(reqOrderIDs, order.OrderID)
+	}
+
+	updated,updatedOrderIDs,err := s.repo.UpdateExpiredOrderStatus(ctx,reqOrderIDs)
+
+	if err != nil {
+		return nil,err
+	}
+
+	if !updated {
+		
+		return &pb.GetOrderStatusResponse{OrderIDs: nil,StatusUpdated: false},nil
+	}
+
+	orderIDs := make([]*pb.OrderID,0,len(updatedOrderIDs))
+
+	for _,order := range updatedOrderIDs {
+
+		orderID := &pb.OrderID{OrderID: order}
+
+		orderIDs = append(orderIDs, orderID)
+	}
+
+	response := &pb.GetOrderStatusResponse{OrderIDs: orderIDs,StatusUpdated: true}
+
+	return response,nil
+
 }
